@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+import "device.proto";
+import "u727.proto";
+package mgw;
+
+message MgwMsg {
+    oneof Message {
+        // messages for mgw <--> device communicate
+        device.CommonRsp           response       = 20;
+        device.SessionReq          sessionReq     = 21;
+        device.SessionRsp          sessionRsp     = 22;
+        device.StartOutputStream   startOutput    = 23;
+        device.StopOutputStream    stopOutput     = 24;
+        device.OutputStreamStatus  outputSta      = 25;
+        device.StopPushingStream   stopPushing    = 26;
+        device.SyncStatusReq       syncReq        = 27;
+        device.SyncStatusRsp       syncRsp        = 28;
+        device.ServerSessionReq    serSessionReq  = 29;
+        device.ServerSessionRsp    serSessionRsp  = 30;
+        device.QuerySource         querySource    = 31;
+        device.SetPullAttr         setPullAttr    = 32;
+        device.PushStreamReq       pushStreamReq  = 33;
+
+        // messages for mgw <--> u727 communicate
+        u727.SetDevBlacklist setBlackList = 34;         // U727 -> MGW
+        u727.SetLocalSvcPortReq setSvcPortReq = 35;     // U727 -> MGW
+        u727.SetLocalSvcPortReply setSvcPortReply = 36; // MGW -> U727
+        u727.GetLocalSvcPortReq getSvcPortReq = 37;     // U727 -> MGW
+        u727.GetLocalSvcPortReply getSvcPortReply = 38; // MGW -> U727
+        u727.StartStreamReq startStreamReq = 39;        // U727 -> MGW
+        u727.StartStreamReply startStreamReply = 40;    // MGW -> U727
+        u727.StopStreamReq  stopStream = 41;            // U727 -> MGW
+        u727.MgwDevOnlineNotify devOnline = 42;         // MGW -> U727
+        u727.MgwDevOfflineNotify devOffline = 43;      // MGW -> U727
+        u727.StreamStatusNotify streamStatus = 44;     // MGW -> U727
+        u727.DevStartStreamNotify devStartStreamNotify = 45; // MGW -> U727
+        u727.DevStopStreamNotify devStopStreamNotify = 46;   // MGW -> U727
+        u727.KeepAlive u727keepAlive = 48; // U727 -> MGW -> U727
+        u727.QueryOnlineDevReq queryOnlineDevReq = 49; // U727 -> MGW
+        u727.QueryOnlineDevReply queryOnlineDevReply = 50; // MGW -> U727
+
+        device.ServerKeepAlive     keepAlive      = 47;
+    }
+}

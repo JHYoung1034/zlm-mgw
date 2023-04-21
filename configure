@@ -1,0 +1,283 @@
+#!/bin/bash
+#
+# MGW configure script
+# Copyright (c) 2021- Jovial Young
+#
+
+#Shell color define
+color_red='\E[1;31m'
+color_green='\E[1;32m'
+color_yellow='\E[1;33m'
+color_blue='\E[1;34m'
+color_prink='\E[1;35m'
+color_blink_yellow='\E[33;5m'
+color_clear='\E[0m'
+
+show_help(){
+    cat <<EOF
+Usage: configure [options]
+
+  --help                    print this message
+  --prefix=                 install in PREFIX [$project_dir/install]
+
+  --arch=                   select architecture [$arch]
+  --project=                use PROJECT for select Q8/Q9/R8/A5/Q8S/server to build [$PROJECT]
+  --enable-debug=           enable debugging symbols[$DEBUG]
+  --shared-libs=            build libraries to shared[$MGW_SHARED_LIBS]
+  --build-jobs=             build jobs[$JOBS]
+  --run-valgrind=           run mgw program with vagrind[$MGW_VALGRIND]
+  --cross-3rdparty-path=    thirdparty for cross compile[$CROSS_3RD_PATH]
+
+NOTE: Object files are built at the place where configure is launched.
+EOF
+    exit 0
+}
+
+#Set all default configurations
+project_dir=`pwd`
+arch=x86
+prefix=$project_dir/install
+cross_prefix=
+PROJECT=server
+STATIC=
+SHARED=1
+SERVER=1
+DEBUG=yes
+MGW_SHARED_LIBS=yes
+#check cpu core number
+JOBS=1
+MGW_VALGRIND=no
+CROSS_3RD_PATH=
+MACROS=
+
+MGW_OPTIONS_LIST="
+    debug
+    static
+    shared
+    server
+"
+toupper(){
+    echo "$@" | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+}
+
+tolower(){
+    echo "$@" | tr ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
+}
+
+is_in(){
+    value=$1
+    shift
+    for var in $*; do
+        [ $var = $value ] && return 0
+    done
+    return 1
+}
+
+die_unknown(){
+    printf $color_red"Unknown option \"$1\".\n"$color_clear
+    echo "See $0 --help for available options."
+    exit 1
+}
+
+append(){
+    var=$1
+    shift
+    eval "$var=\"\$$var $*\""
+}
+
+enabled(){
+    test "${1#!}" = "$1" && op="=" || op="!="
+    eval test "x\$${1#!}" $op "xyes"
+    echo eval test "x\$${1#!}" $op "xyes"
+}
+
+disabled(){
+    test "${1#!}" = "$1" && op="=" || op="!="
+    eval test "x\$${1#!}" $op "xno"
+    echo eval test "x\$${1#!}" $op "xno"
+}
+
+enabled_all(){
+    for opt; do
+        enabled $opt || return 1
+    done
+}
+
+disabled_all(){
+    for opt; do
+        disabled $opt || return 1
+    done
+}
+
+enabled_any(){
+    for opt; do
+        enabled $opt && return 0
+    done
+}
+
+set_option(){
+    if test "$1" = "enable";then
+        eval $2=1
+    else
+        eval $2=
+    fi
+}
+
+#Parse command line args
+for opt do
+    optval="${opt#*=}"
+    case "$opt" in
+        --help|-h) show_help
+        ;;
+        --prefix=*)
+            prefix="$optval"
+            MACROS := -DCMAKE_INSTALL_PREFIX=${prefix}
+        ;;
+        # --enable-?*=?|--disable-?*=?)
+        #     eval $(echo "$opt" | sed 's/--/action=/;s/-/ option=/;s/-/_/g')
+        #     if is_in $option $MGW_OPTIONS_LIST; then
+        #         test $action = disable && action=unset
+        #         # eval $action \$$(toupper $option)
+        #         set_option $action $(toupper $option)
+        #     else
+        #         die_unknown $opt
+        #     fi
+        # ;;
+        --enable-debug=*)
+            DEBUG="$optval"
+        ;;
+        --arch=*)
+            arch="$optval"
+        ;;
+        --shared-libs=*)
+            MGW_SHARED_LIBS=$(toupper $optval)
+        ;;
+        --build-jobs=*)
+            JOBS="$optval"
+        ;;
+        --run-valgrind=*)
+            MGW_VALGRIND=$(toupper $optval)
+        ;;
+        --project=*)
+            PROJECT="$optval"
+            SERVER=
+            case "$optval" in
+                Q8)
+                    cross_prefix="arm-hisiv500-linux-"
+                    MACROS += -DHISI_LINUX
+                ;;
+                Q9|R8)
+                    cross_prefix="arm-hisiv600-linux-"
+                    MACROS += -DHISI_LINUX
+                ;;
+                A5|Q8S) cross_prefix="arm-linux-gnueabihf-"
+                ;;
+                *)
+                    SERVER=1
+                ;;
+            esac
+        ;;
+        --cross-3rdparty-path=*)
+            CROSS_3RD_PATH="$optval"
+        ;;
+        *) die_unknown $opt
+        ;;
+    esac
+done
+
+#Set enviroment
+for e in $env; do
+    eval "export $e"
+done
+
+export MGW_JOBS=-j${JOBS}
+export MGW_VALGRIND=$MGW_VALGRIND
+export MGW_SHARED_LIBS=$MGW_SHARED_LIBS
+
+echo -e "option: job[$JOBS] MGW_VALGRIND[$MGW_VALGRIND] MGW_SHARED_LIBS[$MGW_SHARED_LIBS]"
+
+if [[ 1 == $SERVER ]]; then
+    cd ./mgw/3rdparty/ && ./os-check.sh
+    ret=$?; if [[ 0 -ne $ret ]]; then
+        echo -e $color_red"os check failed!"$color_clear
+        exit 1
+    fi
+    cd ../..
+fi
+
+for opt in $OPTIONS; do
+    echo $opt
+done
+
+#Compile all protobuffer files "*.proto" to cpp files "*.cc"
+protoc_obj=${project_dir}/mgw/3rdparty/install/bin/protoc
+if [ $PROJECT = 'Q8' ];then
+    protoc_obj=${CROSS_3RD_PATH}/bin/protoc
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CROSS_3RD_PATH}/lib
+else
+    export LD_LIBRARY_PATH=${project_dir}/mgw/3rdparty/install/lib
+fi
+
+${protoc_obj} --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo -e "file: $protoc_obj do not exist!"
+    exit 2
+fi
+
+#Generate cpp file from protobuf file
+${protoc_obj} --proto_path=${project_dir}/mgw/message/mgw_proto \
+--cpp_out=${project_dir}/mgw/message ${project_dir}/mgw/message/mgw_proto/*.proto
+
+#Get git version hash+time
+git status >/dev/null 2>&1; ret=$?;if [[ 0 -eq $ret ]];then
+
+commit_ts=`git log -1 --format="%ct"`
+commit_time=`date -d@$commit_ts +"%Y-%m-%d %H:%M:%S"`
+current_time=`date +"%Y-%m-%d %H:%M:%S"`
+git_version=`git log -1 --format="%h"`
+
+cat > mgw/version.h <<EOF
+/**< Automatically generated by configure - do not modify! */
+#ifndef _GIT_VERSION_
+#define _GIT_VERSION_   "$git_version"
+#endif
+#ifndef _COMMIT_TIME_
+#define _COMMIT_TIME_   "$commit_time"
+#endif
+#ifndef _BUILD_TIME_
+#define _BUILD_TIME_    "$current_time"
+#endif
+EOF
+fi
+
+#run cmake to configuring ...
+if [ -d build/ ];then
+    rm build/* -rf;
+else
+    mkdir build
+fi
+
+cd build
+export CC=${cross_prefix}gcc CXX=${cross_prefix}g++
+cmake .. ${MACROS} >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+    echo $color_red"configure cmake failed!"$color_clear
+    exit 3
+else
+
+cat > ../Makefile <<EOF
+#Automatically generated by configure - do not modify!
+all:
+	\$(MAKE) -C build
+
+.PHONY: clean
+clean:
+	\$(MAKE) -C build clean
+
+.PHONY: install
+install:
+	\$(MAKE) -C build install
+
+.PHONY: distclean
+distclean:
+	\$(MAKE) -C build distclean
+EOF
+fi

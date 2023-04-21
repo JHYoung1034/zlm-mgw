@@ -1,0 +1,14 @@
+prefix=/home/yjh/work/mgw-zlm/mgw/3rdparty/install
+exec_prefix=${prefix}
+libdir=/home/yjh/work/mgw-zlm/mgw/3rdparty/install/lib
+includedir=/home/yjh/work/mgw-zlm/mgw/3rdparty/install/include
+
+Name: libswscale
+Description: FFmpeg image rescaling library
+Version: 5.7.100
+Requires: libavutil >= 56.51.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lswscale -lm
+Libs.private: 
+Cflags: -I${includedir}

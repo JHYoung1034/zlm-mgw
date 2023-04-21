@@ -1,0 +1,145 @@
+syntax = "proto3";
+import "common.proto";
+package device;
+
+message StreamInfo {
+    uint32 channel = 1;
+    //unix time
+    uint32 startTime = 2;
+    uint32 currentTime = 3;
+    uint32 stopTime = 4;
+    int64  totalBytesSnd = 5;
+    uint32 reconnectCnt = 6;
+    int32  status = 7;      //0-Stopped, 1-Streaming, 2-Reconnecting, 3-Get message failed
+    common.StreamAddress streamAddr = 8;
+}
+
+//-----------------------------------------------------------------------//
+//common response
+message CommonRsp {
+    int32       command = 1;
+    int32       srcChn = 2;
+    int32       outChn = 3;
+    int32       result = 4;
+    string      descrip = 5;
+}
+
+//session request and response.
+//device-->server
+message SessionReq {
+    string sn = 1;
+    string type = 2;
+    string version = 3;
+    string vendor = 4;
+    uint32 outputCapacity = 5;
+    uint32 maxBitrate = 6;
+    string accessToken = 7;
+
+    uint32 maxBitrate4K = 8;
+}
+//server-->device
+message SessionRsp {
+    int32  accessResult = 1;
+    uint32 outputCapacity = 2;
+    uint32 maxBitrate = 3;
+    common.StreamAddress streamAddr = 4;
+
+    uint32 maxBitrate4K = 5;
+    string pullAddr = 6;
+    uint32 maxPlayers = 7;
+}
+
+//server-->device
+message PushStreamReq {
+    string      proto = 1;
+    uint32      chn = 2;
+}
+
+//start output stream and response by common response. device-->server
+message StartOutputStream {
+    uint32          srcChn = 1;
+    uint32          outChn = 2;
+    common.StreamAddress   address = 3;
+}
+
+//stop output stream and response by common response. device-->server
+message StopOutputStream {
+    uint32          srcChn = 1;
+    uint32          outChn = 2;
+}
+
+//notify device the status of output stream have changed. server-->device
+message OutputStreamStatus {
+    uint32          srcChn = 1;
+    uint32          outChn = 2;
+    int32           status = 3;     //0-Stopped, 1-Streaming, 2-Reconnecting
+    //TODO: return some message about network status
+
+    int32           startTime = 4;
+    int32           lastErrCode = 5;
+}
+
+//notify device stop to pushing stream to server. server-->device
+message StopPushingStream {
+    uint32          srcChn = 1;
+    int32           command = 2;    //set to 1
+}
+
+//Synchronize status periodically request. device-->server
+message SyncStatusReq {
+    uint32      srcChn = 1;
+    //uint32      currTs = 2;    //ms
+    //uint32      sndCnt = 3;
+    //uint32      chnCap = 4;    //channel capacity
+    //uint32      maxBitrate = 5;
+    //uint32      currChnCap = 6;   //current channel capacity
+    //uint32      currMaxBitrate = 7;   //current max bitrate
+    //repeated StreamInfo streamInfos = 8;
+}
+
+//Synchronize status periodically response. server-->device  server-->server
+message SyncStatusRsp {
+    string      devSN = 1;
+    uint32      srcChn = 2;
+    uint32      currTs = 3;    //ms
+    uint32      sndCnt = 4;
+    uint32      chnCap = 5;    //channel capacity
+    uint32      maxBitrate = 6;
+    repeated StreamInfo streamInfos = 7;
+
+    uint32      maxBitrate4K = 8;
+    uint64      playTotalBytes = 9;
+    uint32      players = 10;
+}
+
+message QuerySource {
+    string      devSN = 1;
+    uint32      srcChn = 2;
+}
+
+message SetPullAttr {
+    bool        enable = 1;
+    bool        forceStop = 2;    //stop all pull stream forcibly
+    uint32      proto = 3;        //1=rtmp, 2=srt, 3=udp_ts, 4=rtsp
+}
+
+//-----------------------------------------------------------------------//
+//server ----> server
+message ServerSessionReq {
+    uint32      hbInterval = 1;
+    uint32      serverPort = 2;
+    string      serverHost = 3;     //IP addresss or virtual hostname, Temporarily set to IP address
+    string      serverPath = 4;
+    string      secretKey  = 5;
+    string      serverVer  = 6;
+    int64       uptime     = 7;
+}
+
+message ServerSessionRsp {
+    uint32      sessionResult = 1;  //0 to success, otherwise failed
+}
+
+message ServerKeepAlive {
+    int64       uptime     = 1;
+    int64       cur_time   = 2;
+}

@@ -1,0 +1,35 @@
+syntax = "proto3";
+package common;
+
+// defines common messages, such as stream_addr...
+message SRTStreamAddress {
+    message Professional {
+        int32       mode = 2;   //0-None, 1-Caller, 2-Listener, 3-Rendezvous
+        string      hostname = 3;
+        uint32      port = 4;
+        uint32      latency = 5;
+        uint32      maxbw = 6;
+        uint32      pbkeylen = 7;
+        string      passphrase = 8;
+        string      streamid = 9;
+    }
+
+    oneof AddressMode {
+        Professional    proAddr = 1;
+        string          simAddr = 2;
+    }
+}
+
+message RTMPStreamAddress {
+    string      uri = 1;
+    string      code = 2;
+    string      username = 3;
+    string      password = 4;
+}
+
+message StreamAddress {
+    oneof Address {
+        SRTStreamAddress    srt = 1;
+        RTMPStreamAddress   rtmp = 2;
+    }
+}

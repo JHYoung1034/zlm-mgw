@@ -1,0 +1,108 @@
+syntax = "proto3";
+import "common.proto";
+package u727;
+
+message MgwDevInfo {
+    string dev_sn = 1;
+    string type = 2;
+    string version = 3;
+    string vendor = 4;
+}
+
+// 设置设备黑名单
+message SetDevBlacklist {
+    repeated string dev_sn_list = 1;
+}
+
+// 开始传输流
+message StartStreamReq {
+    string stream_id = 1;
+    oneof src {
+        string src_sock = 11; // U727内部传输的domain socket(拉模式)
+        string src_dev_sn = 12;  // 从设备拉流
+        common.StreamAddress src_pull_addr = 13; // 从源地址拉流
+        common.StreamAddress src_push_addr = 14; // 本地监听等待推流
+        string src_file_path = 15;
+    }
+    oneof dest {
+        string dest_sock = 21; // U727内部传输的domain socket(推模式)
+        common.StreamAddress dest_push_addr = 23; // 向目的地址推流
+        common.StreamAddress dest_pull_addr = 24; // 本地监听等待拉流
+        string dest_file_path = 25;
+    }
+    uint32 delay_ms = 31; // 多种规格延迟输出(500ms,1s,2s,3s,…最长30min)
+}
+
+message StartStreamReply {
+    string stream_id = 1;
+    int32  result = 2;
+    string descrip = 3;
+}
+
+// 停止流
+message StopStreamReq {
+    string stream_id = 1;
+}
+
+// 设备上线通知
+message MgwDevOnlineNotify {
+    MgwDevInfo device = 20;
+}
+
+// 设备下线通知
+message MgwDevOfflineNotify {
+    string dev_sn = 1;
+}
+
+// 修改RTMP/SRT/HTTP等服务的端口号
+message SetLocalSvcPortReq {
+    uint32 rtmp_port = 1;
+    uint32 srt_port = 2;
+    uint32 http_port = 3;
+}
+message SetLocalSvcPortReply {
+    int32  result = 1;
+    string descrip = 2;
+}
+
+// 查询RTMP/SRT/HTTP等服务的端口号
+message GetLocalSvcPortReq {
+}
+message GetLocalSvcPortReply {
+    uint32 rtmp_port = 1;
+    uint32 srt_port = 2;
+    uint32 http_port = 3;
+}
+
+// 流状态通知
+message StreamStatusNotify {
+    string stream_id = 1;
+    int32 status = 3;     //0-Stopped, 1-Streaming, 2-Reconnecting
+    int32 startTime = 4;
+    int32 lastErrCode = 5;
+}
+
+// 通知设备启动推流
+message DevStartStreamNotify {
+    string dev_sn = 1;
+    uint32 channel = 2;
+    common.StreamAddress dest_addr = 3;
+}
+
+// 通知设备停止推流
+message DevStopStreamNotify {
+    string dev_sn = 1;
+    uint32 channel = 2;
+    common.StreamAddress dest_addr = 3;
+}
+
+// 心跳消息, U727 -> MGW, MGW 收到后也应答一条
+message KeepAlive {
+}
+
+// 查询在线设备列表
+message QueryOnlineDevReq {
+}
+message QueryOnlineDevReply {
+    repeated MgwDevInfo devices = 20;
+}

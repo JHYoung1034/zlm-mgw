@@ -1,0 +1,20 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+[remote "origin"]
+	url = https://gitee.com/xia-chu/ZLMediaKit.git
+	fetch = +refs/heads/master:refs/remotes/origin/master
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
+[submodule "ZLToolKit"]
+	active = true
+	url = https://gitee.com/xia-chu/ZLToolKit
+[submodule "3rdpart/jsoncpp"]
+	active = true
+	url = https://gitee.com/mirrors/jsoncpp.git
+[submodule "3rdpart/media-server"]
+	active = true
+	url = https://gitee.com/ireader/media-server
