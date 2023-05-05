@@ -1,4 +1,6 @@
 #include "U727.h"
+#include "Common/config.h"
+#include "UcastDevice.h"
 
 using namespace std;
 
@@ -20,9 +22,9 @@ namespace mediakit {
 
 void U727::startStream(const string &id, uint32_t delay_ms, StreamType src_type,
             const string &src, StreamType dest_type, const string &dest) {
-    if (src_type == StreamType_Dev && !src.empty()) {
-        
-    }
+
+    //1. 查找源，如果找不到，就请求设备推流，或者代理拉网络流，或者从本地文件输入
+    //2. 根据目标类型，开启一个网络推流(rtmp/rtsp/srt/ts/domainsock)
 }
 
 void U727::stopStream(const string &id) {

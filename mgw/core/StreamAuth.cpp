@@ -15,7 +15,7 @@ namespace mediakit {
 
 std::string StreamAuth::md5Sum(const std::string &data) {
 
-    cout << "md5 data:" << data << endl;
+    // cout << "md5 data:" << data << endl;
     string ret;
     MD5_CTX c;
     unsigned char md[MD5_DIGEST_LENGTH] = {};
@@ -33,7 +33,7 @@ std::string StreamAuth::md5Sum(const std::string &data) {
 
     ret.append((const char *)res);
 
-    cout << "md5 result:" << ret << endl;
+    // cout << "md5 result:" << ret << endl;
 
 err:
     return ret;

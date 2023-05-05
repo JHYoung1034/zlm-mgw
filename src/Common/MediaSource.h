@@ -157,6 +157,8 @@ public:
     bool enable_ts;
     //是否开启转换为http-fmp4/ws-fmp4
     bool enable_fmp4;
+    //是否开启转换为Dmsp
+    bool enable_dmsp;
 
     // hls协议是否按需生成，如果hls.segNum配置为0(意味着hls录制)，那么hls将一直生成(不管此开关)
     bool hls_demand;
@@ -168,6 +170,8 @@ public:
     bool ts_demand;
     // http[s]-fmp4、ws[s]-fmp4协议是否按需生成
     bool fmp4_demand;
+    //dmsp协议是否按需生成
+    bool dmsp_demand;
 
     //是否将mp4录制当做观看者
     bool mp4_as_player;
@@ -193,12 +197,14 @@ public:
         GET_OPT_VALUE(enable_rtmp);
         GET_OPT_VALUE(enable_ts);
         GET_OPT_VALUE(enable_fmp4);
+        GET_OPT_VALUE(enable_dmsp);
 
         GET_OPT_VALUE(hls_demand);
         GET_OPT_VALUE(rtsp_demand);
         GET_OPT_VALUE(rtmp_demand);
         GET_OPT_VALUE(ts_demand);
         GET_OPT_VALUE(fmp4_demand);
+        GET_OPT_VALUE(dmsp_demand);
 
         GET_OPT_VALUE(mp4_max_second);
         GET_OPT_VALUE(mp4_as_player);

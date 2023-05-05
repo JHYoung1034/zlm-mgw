@@ -143,7 +143,7 @@ void DeviceSession::onMsg_sessionReq(ProtoBufDec &dec) {
         return;
 
     //update session or insert a new session
-    _device_helper = make_shared<DeviceHelper>(req.sn());
+    _device_helper = make_shared<DeviceHelper>(req.sn(), getPoller());
     auto &device = _device_helper->device();
     device->setAlive(true, true);
 

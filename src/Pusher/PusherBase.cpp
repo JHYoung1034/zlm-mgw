@@ -12,6 +12,7 @@
 #include "PusherBase.h"
 #include "Rtsp/RtspPusher.h"
 #include "Rtmp/RtmpPusher.h"
+#include "Dmsp/DmspPusher.h"
 
 using namespace toolkit;
 
@@ -42,6 +43,10 @@ PusherBase::Ptr PusherBase::createPusher(const EventPoller::Ptr &poller,
 
     if (strcasecmp("rtmp",prefix.data()) == 0) {
         return PusherBase::Ptr(new RtmpPusherImp(poller, std::dynamic_pointer_cast<RtmpMediaSource>(src)), releasePusher);
+    }
+
+    if (strcasecmp("dmsp", prefix.data()) == 0) {
+        return PusherBase::Ptr(new DmspPusherImp(poller, std::dynamic_pointer_cast<DmspMediaSource>(src)), releasePusher);
     }
 
     throw std::invalid_argument("not supported push schema:" + url);

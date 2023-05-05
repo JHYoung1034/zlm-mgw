@@ -10,16 +10,17 @@
 typedef int ChannelId;
 typedef int Time_t;
 
-enum EncoderType {
-    EncoderType_Video = 0,
+enum EncoderType : uint8_t {
+    EncoderType_None = 0,
+    EncoderType_Video,
     EncoderType_Audio,
 };
 
-enum EncoderId {
+enum EncoderId : uint8_t {
     EncoderId_None = 0,
-    EncoderId_AAC,
     EncoderId_H264,
     EncoderId_H265,
+    EncoderId_AAC,
 };
 
 enum ChannelType {

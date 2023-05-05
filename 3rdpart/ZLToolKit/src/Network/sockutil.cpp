@@ -513,6 +513,51 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *n
     return -1;
 }
 
+int SockUtil::connect(const std::string &svr_path, const std::string &cli_path, bool async) {
+    //创建套接字
+    int sockfd = (int) socket(AF_LOCAL, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        WarnL << "Create socket failed: " << svr_path;
+        return -1;
+    }
+
+    setNoSigpipe(sockfd);
+    setNoBlocked(sockfd, async);
+    setSendBuf(sockfd);
+    setRecvBuf(sockfd);
+    setCloseWait(sockfd);
+    setCloExec(sockfd);
+
+    if (!cli_path.empty()) {
+        struct sockaddr_un cli_addr;
+        memset((void*)&cli_addr, 0, sizeof(cli_addr));
+        cli_addr.sun_family = AF_LOCAL;
+        strncpy(cli_addr.sun_path, cli_path.data(), sizeof(cli_addr.sun_path) - 1);
+        unlink(cli_path.data());
+        if (::bind(sockfd, (sockaddr *) &cli_addr, get_sock_len((sockaddr *)&cli_addr)) != 0) {
+            WarnL << "Bind client path failed: " << cli_path;
+            return -1;
+        }
+    }
+
+    struct sockaddr_un svr_addr;
+    memset((void*)&svr_addr, 0, sizeof(svr_addr));
+    svr_addr.sun_family = AF_LOCAL;
+    strncpy(svr_addr.sun_path, svr_path.data(), sizeof(svr_addr.sun_path) - 1);
+    if (::connect(sockfd, (sockaddr *) &svr_addr, get_sock_len((sockaddr *)&svr_addr)) == 0) {
+        //同步连接成功
+        return sockfd;
+    }
+
+    if (async && get_uv_error(true) == UV_EAGAIN) {
+        //异步连接成功
+        return sockfd;
+    }
+    WarnL << "Connect socket to " << svr_path << " failed: " << get_uv_errmsg(true);
+    close(sockfd);
+    return -1;
+}
+
 int SockUtil::listen(const uint16_t port, const char *local_ip, int back_log) {
     int fd = -1;
     int family = support_ipv6() ? (is_ipv4(local_ip) ? AF_INET : AF_INET6) : AF_INET;
@@ -1124,6 +1169,7 @@ socklen_t SockUtil::get_sock_len(const struct sockaddr *addr) {
     switch (addr->sa_family) {
         case AF_INET : return sizeof(sockaddr_in);
         case AF_INET6 : return sizeof(sockaddr_in6);
+        case AF_LOCAL: return sizeof(sockaddr_un);
         default: assert(0); return 0;
     }
 }

@@ -30,7 +30,7 @@ DeviceHandle::DeviceHandle(mgw_context *ctx) {
     //初始化协议服务
 
     _poller = EventPollerPool::Instance().getPoller();
-    _device_helper = make_shared<DeviceHelper>(ctx->sn);
+    _device_helper = make_shared<DeviceHelper>(ctx->sn, _poller);
     _ws_client = make_shared<MessageClient>(_poller, Entity_Device, _device_helper);
 }
 

@@ -113,12 +113,14 @@ public:
         Sock_Invalid = -1,
         Sock_TCP = 0,
         Sock_UDP = 1,
-        Sock_TCP_Server = 2
+        Sock_TCP_Server = 2,
+        Sock_Domain = 3,
     } SockType;
 
-    SockNum(int fd, SockType type) {
+    SockNum(int fd, SockType type, const std::string &path = "") {
         _fd = fd;
         _type = type;
+        _path = path;
     }
 
     ~SockNum() {
@@ -159,6 +161,7 @@ private:
 private:
     int _fd;
     SockType _type;
+    std::string _path;
 };
 
 //socket 文件描述符的包装
@@ -260,6 +263,8 @@ public:
     virtual uint16_t get_peer_port() = 0;
     //获取标识符
     virtual std::string getIdentifier() const { return ""; }
+    //获取绑定的domain socket路径
+    virtual std::string getBindPath() const { return ""; }
 };
 
 #define TraceP(ptr) TraceL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
@@ -304,6 +309,15 @@ public:
      * @param local_port 绑定本地网卡端口号
      */
     void connect(const std::string &url, uint16_t port, const onErrCB &con_cb, float timeout_sec = 5, const std::string &local_ip = "::", uint16_t local_port = 0);
+
+    /**
+     * 创建domain socket客户端并异步连接服务器
+     * @param cli_path 客户端路径
+     * @param svr_path 服务器路径
+     * @param con_cb 结果回调
+     * @param timeout_sec 超时时间
+    */
+    void connect(const std::string &srv_path, const onErrCB &con_cb, const std::string &cli_path = "", float timeout_sec = 5);
 
     /**
      * 创建tcp监听服务器
@@ -494,6 +508,7 @@ public:
     std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
     std::string getIdentifier() const override;
+    std::string getBindPath() const override;
 
 private:
     SockFD::Ptr cloneSockFD(const Socket &other);
@@ -512,6 +527,8 @@ private:
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
     bool fromSock_l(int fd, SockNum::SockType type);
+
+    void connect_l(const std::string &svr_path, const onErrCB &con_cb, const std::string &cli_path, float timeout_sec);
 
 private:
     //send socket时的flag
@@ -544,6 +561,9 @@ private:
     EventPoller::Ptr _poller;
     //跨线程访问_sock_fd时需要上锁
     mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;
+
+    //domain socket 绑定的服务端路径
+    std::string _svr_path;
 
     //socket异常事件(比如说断开)
     onErrCB _on_err;
@@ -655,6 +675,7 @@ public:
     uint16_t get_local_port() override;
     std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
+    std::string getBindPath() const override;
 
     ///////////////////// TaskExecutorInterface override /////////////////////
     /**

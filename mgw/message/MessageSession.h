@@ -78,8 +78,11 @@ private:
 
     ///////////////////////////////////////////////
     void setEventHandle();
+    void startStream(const std::string &id, uint32_t delay_ms, StreamType src_type,
+            const std::string &src, StreamType dest_type, const std::string &dest);
 
 private:
+    bool _event_handle_init = false;
     uint32_t _total_bytes = 0;
     //数据接收超时计时器
     toolkit::Ticker _ticker;

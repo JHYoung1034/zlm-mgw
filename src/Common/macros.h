@@ -68,6 +68,7 @@
 #define TS_SCHEMA "ts"
 #define FMP4_SCHEMA "fmp4"
 #define SRT_SCHEMA "srt"
+#define DMSP_SCHEMA "dmsp"
 #define DEFAULT_VHOST "__defaultVhost__"
 
 #ifdef __cplusplus

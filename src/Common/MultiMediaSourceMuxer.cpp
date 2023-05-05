@@ -118,6 +118,10 @@ MultiMediaSourceMuxer::MultiMediaSourceMuxer(const string &vhost, const string &
         _fmp4 = std::make_shared<FMP4MediaSourceMuxer>(vhost, app, stream, option);
     }
 #endif
+    DebugL << "enbale_dmsp: " << option.enable_dmsp;
+    if (option.enable_dmsp) {
+        _dmsp = std::make_shared<DmspMediaSourceMuxer>(vhost, app, stream, option);
+    }
 
     //音频相关设置
     enableAudio(option.enable_audio);
@@ -147,6 +151,10 @@ void MultiMediaSourceMuxer::setMediaListener(const std::weak_ptr<MediaSourceEven
     if (hls) {
         hls->setListener(self);
     }
+
+    if (_dmsp) {
+        _dmsp->setListener(self);
+    }
 }
 
 void MultiMediaSourceMuxer::setTrackListener(const std::weak_ptr<Listener> &listener) {
@@ -163,7 +171,8 @@ int MultiMediaSourceMuxer::totalReaderCount() const {
            #endif
            (_mp4 ? _option.mp4_as_player : 0) +
            (hls ? hls->readerCount() : 0) +
-           (_ring ? _ring->readerCount() : 0);
+           (_ring ? _ring->readerCount() : 0) +
+           (_dmsp ? _dmsp->readerCount() : 0);
 }
 
 void MultiMediaSourceMuxer::setTimeStamp(uint32_t stamp) {
@@ -172,6 +181,9 @@ void MultiMediaSourceMuxer::setTimeStamp(uint32_t stamp) {
     }
     if (_rtsp) {
         _rtsp->setTimeStamp(stamp);
+    }
+    if (_dmsp) {
+        _dmsp->setTimeStamp(stamp);
     }
 }
 
@@ -352,6 +364,9 @@ bool MultiMediaSourceMuxer::onTrackReady(const Track::Ptr &track) {
     if (mp4) {
         ret = mp4->addTrack(track) ? true : ret;
     }
+    if (_dmsp) {
+        ret = _dmsp->addTrack(track) ? true : ret;
+    }
     return ret;
 }
 
@@ -370,6 +385,9 @@ void MultiMediaSourceMuxer::onAllTrackReady() {
         _fmp4->onAllTrackReady();
     }
 #endif
+    if (_dmsp) {
+        _dmsp->onAllTrackReady();
+    }
     auto listener = _track_listener.lock();
     if (listener) {
         listener->onAllTrackReady();
@@ -417,6 +435,9 @@ void MultiMediaSourceMuxer::resetTracks() {
         _fmp4->resetTracks();
     }
 #endif
+    if (_dmsp) {
+        _dmsp->resetTracks();
+    }
 
     //拷贝智能指针，目的是为了防止跨线程调用设置录像相关api导致的线程竞争问题
     auto hls = _hls;
@@ -464,6 +485,9 @@ bool MultiMediaSourceMuxer::onTrackFrame(const Frame::Ptr &frame_in) {
         ret = _fmp4->inputFrame(frame) ? true : ret;
     }
 #endif
+    if (_dmsp) {
+        ret = _dmsp->inputFrame(frame) ? true : ret;
+    }
 
     if (_ring) {
         if (frame->getTrackType() == TrackVideo) {
@@ -492,7 +516,8 @@ bool MultiMediaSourceMuxer::isEnabled(){
                      (_fmp4 ? _fmp4->isEnabled() : false) ||
                      #endif
                      (_ring ? (bool)_ring->readerCount() : false)  ||
-                     (hls ? hls->isEnabled() : false) || _mp4;
+                     (hls ? hls->isEnabled() : false) || _mp4 ||
+                     (_dmsp ? _dmsp->isEnabled() : false);
 
         if (_is_enable) {
             //无人观看时，不刷新计时器,因为无人观看时每次都会检查一遍，所以刷新计数器无意义且浪费cpu

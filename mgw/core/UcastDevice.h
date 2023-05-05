@@ -113,8 +113,8 @@ public:
     ////////////////////////////////////////////
 
     ProtocolOption getEnableOption() const { return _option; }
+    void pusher_for_each(std::function<void(PushHelper::Ptr)> func);
 
-private:
     PushHelper::Ptr &pusher(const std::string &name);
     void releasePusher(const std::string &name);
     PlayHelper::Ptr &player(const std::string &name);
@@ -143,6 +143,9 @@ private:
     //由于收到消费者变化的消息是由其他线程调用，因此该变量使用原子操作。
     std::atomic<uint32_t> _total_players = {0};
 
+    //流量统计，应该跟随设备实例生命周期，累计统计，不能出现反转
+    TrafficsStatistics::Ptr _tra_sta = nullptr;
+
     //设备配置信息
     DeviceConfig    _cfg;
     //鉴权实例，包括生成推流和播放地址
@@ -163,7 +166,7 @@ public:
     using Ptr = std::shared_ptr<DeviceHelper>;
     using getNetif = std::function<void(std::string &, uint16_t &)>;   //回调获取指定网卡和mtu
 
-    DeviceHelper(const std::string &sn);
+    DeviceHelper(const std::string &sn, const toolkit::EventPoller::Ptr &poller);
     ~DeviceHelper();
 
     std::string sn() const { return _sn; }
@@ -188,6 +191,10 @@ public:
     uint64_t pushTotalBytes();
     //设置允许的播放协议
     void enablePlayProtocol(bool enable, bool force_stop, const std::string &proto);
+    //获取所在线程
+    const toolkit::EventPoller::Ptr &getPoller() const {
+        return _poller;
+    }
 
     //////////////////////////////////////////////////////////////////
     //设置没有消费者通知回调
@@ -229,6 +236,8 @@ private:
     TrafficsStatistics _flow_sta;
     //回调获取指定网卡和mtu
     getNetif _get_netif = nullptr;
+    //线程实例
+    toolkit::EventPoller::Ptr _poller;
     //管理设备实例
     static std::recursive_mutex _mtx;
     static std::unordered_map<std::string, Device::Ptr> _device_map;

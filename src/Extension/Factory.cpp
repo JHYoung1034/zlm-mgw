@@ -28,6 +28,11 @@
 #include "Common/Parser.h"
 #include "Common/config.h"
 
+#include "Dmsp/Dmsp.h"
+#include "H264Dmsp.h"
+#include "H265Dmsp.h"
+#include "AACDmsp.h"
+
 using namespace std;
 
 namespace mediakit{
@@ -299,6 +304,15 @@ AMFValue Factory::getAmfByCodecId(CodecId codecId) {
         case CodecG711U: return AMFValue(FLV_CODEC_G711U);
         case CodecOpus: return AMFValue(FLV_CODEC_OPUS);
         default: return AMFValue(AMF_NULL);
+    }
+}
+
+DmspCodec::Ptr Factory::getDmspCodecByTrack(const Track::Ptr &track, bool is_encode) {
+    switch (track->getCodecId()) {
+        case CodecH264: return std::make_shared<H264DmspEncoder>(track);
+        case CodecH265: return std::make_shared<H265DmspEncoder>(track);
+        case CodecAAC: return std::make_shared<AACDmspEncoder>(track);
+        default : WarnL << "暂不支持该CodecId:" << track->getCodecName(); return nullptr;
     }
 }
 

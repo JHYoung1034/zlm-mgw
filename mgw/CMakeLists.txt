@@ -1,5 +1,6 @@
 #需要编译的文件
 file(GLOB MGW_SRC_LIST core/*.cpp core/*.cc core/*.h core/*.hpp
+  core/Dmsp/*.cpp core/Dmsp/*.cc core/Dmsp/*.h core/Dmsp/*.hpp
   message/*.cpp message/*.cc message/*.h message/*.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/install/include/*.h)
 #添加生成的目标->静态库文件libmgw.a
@@ -21,7 +22,8 @@ target_include_directories(mgw
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/install/include>"
   PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../src>")
 
 update_cached_list(MK_COMPILE_DEFINITIONS ENABLE_MGW)
 update_cached_list(MK_LINK_LIBRARIES ZLMediaKit::MGW)

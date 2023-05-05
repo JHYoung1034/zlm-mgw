@@ -77,6 +77,7 @@ static void InitDefaultsscc_info_MgwMsg_mgw_2eproto() {
       &scc_info_QuerySource_device_2eproto.base,
       &scc_info_SetPullAttr_device_2eproto.base,
       &scc_info_PushStreamReq_device_2eproto.base,
+      &scc_info_ServerKeepAlive_device_2eproto.base,
       &scc_info_SetDevBlacklist_u727_2eproto.base,
       &scc_info_SetLocalSvcPortReq_u727_2eproto.base,
       &scc_info_SetLocalSvcPortReply_u727_2eproto.base,
@@ -92,8 +93,7 @@ static void InitDefaultsscc_info_MgwMsg_mgw_2eproto() {
       &scc_info_DevStopStreamNotify_u727_2eproto.base,
       &scc_info_KeepAlive_u727_2eproto.base,
       &scc_info_QueryOnlineDevReq_u727_2eproto.base,
-      &scc_info_QueryOnlineDevReply_u727_2eproto.base,
-      &scc_info_ServerKeepAlive_device_2eproto.base,}};
+      &scc_info_QueryOnlineDevReply_u727_2eproto.base,}};
 
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_mgw_2eproto[1];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_mgw_2eproto = nullptr;
@@ -148,7 +148,7 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
 
 const char descriptor_table_protodef_mgw_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
   "\n\tmgw.proto\022\003mgw\032\014device.proto\032\nu727.pro"
-  "to\"\367\013\n\006MgwMsg\022%\n\010response\030\024 \001(\0132\021.device"
+  "to\"\207\014\n\006MgwMsg\022%\n\010response\030\024 \001(\0132\021.device"
   ".CommonRspH\000\022(\n\nsessionReq\030\025 \001(\0132\022.devic"
   "e.SessionReqH\000\022(\n\nsessionRsp\030\026 \001(\0132\022.dev"
   "ice.SessionRspH\000\0220\n\013startOutput\030\027 \001(\0132\031."
@@ -164,29 +164,29 @@ const char descriptor_table_protodef_mgw_2eproto[] PROTOBUF_SECTION_VARIABLE(pro
   "*\n\013querySource\030\037 \001(\0132\023.device.QuerySourc"
   "eH\000\022*\n\013setPullAttr\030  \001(\0132\023.device.SetPul"
   "lAttrH\000\022.\n\rpushStreamReq\030! \001(\0132\025.device."
-  "PushStreamReqH\000\022-\n\014setBlackList\030\" \001(\0132\025."
-  "u727.SetDevBlacklistH\000\0221\n\rsetSvcPortReq\030"
-  "# \001(\0132\030.u727.SetLocalSvcPortReqH\000\0225\n\017set"
-  "SvcPortReply\030$ \001(\0132\032.u727.SetLocalSvcPor"
-  "tReplyH\000\0221\n\rgetSvcPortReq\030% \001(\0132\030.u727.G"
-  "etLocalSvcPortReqH\000\0225\n\017getSvcPortReply\030&"
-  " \001(\0132\032.u727.GetLocalSvcPortReplyH\000\022.\n\016st"
-  "artStreamReq\030\' \001(\0132\024.u727.StartStreamReq"
-  "H\000\0222\n\020startStreamReply\030( \001(\0132\026.u727.Star"
-  "tStreamReplyH\000\022)\n\nstopStream\030) \001(\0132\023.u72"
-  "7.StopStreamReqH\000\022-\n\tdevOnline\030* \001(\0132\030.u"
-  "727.MgwDevOnlineNotifyH\000\022/\n\ndevOffline\030+"
-  " \001(\0132\031.u727.MgwDevOfflineNotifyH\000\0220\n\014str"
-  "eamStatus\030, \001(\0132\030.u727.StreamStatusNotif"
-  "yH\000\022:\n\024devStartStreamNotify\030- \001(\0132\032.u727"
-  ".DevStartStreamNotifyH\000\0228\n\023devStopStream"
-  "Notify\030. \001(\0132\031.u727.DevStopStreamNotifyH"
-  "\000\022(\n\ru727keepAlive\0300 \001(\0132\017.u727.KeepAliv"
-  "eH\000\0224\n\021queryOnlineDevReq\0301 \001(\0132\027.u727.Qu"
-  "eryOnlineDevReqH\000\0228\n\023queryOnlineDevReply"
-  "\0302 \001(\0132\031.u727.QueryOnlineDevReplyH\000\022,\n\tk"
-  "eepAlive\030/ \001(\0132\027.device.ServerKeepAliveH"
-  "\000B\t\n\007Messageb\006proto3"
+  "PushStreamReqH\000\022,\n\tkeepAlive\030\" \001(\0132\027.dev"
+  "ice.ServerKeepAliveH\000\022.\n\014setBlackList\030\350\007"
+  " \001(\0132\025.u727.SetDevBlacklistH\000\0222\n\rsetSvcP"
+  "ortReq\030\351\007 \001(\0132\030.u727.SetLocalSvcPortReqH"
+  "\000\0226\n\017setSvcPortReply\030\352\007 \001(\0132\032.u727.SetLo"
+  "calSvcPortReplyH\000\0222\n\rgetSvcPortReq\030\353\007 \001("
+  "\0132\030.u727.GetLocalSvcPortReqH\000\0226\n\017getSvcP"
+  "ortReply\030\354\007 \001(\0132\032.u727.GetLocalSvcPortRe"
+  "plyH\000\022/\n\016startStreamReq\030\355\007 \001(\0132\024.u727.St"
+  "artStreamReqH\000\0223\n\020startStreamReply\030\356\007 \001("
+  "\0132\026.u727.StartStreamReplyH\000\022*\n\nstopStrea"
+  "m\030\357\007 \001(\0132\023.u727.StopStreamReqH\000\022.\n\tdevOn"
+  "line\030\360\007 \001(\0132\030.u727.MgwDevOnlineNotifyH\000\022"
+  "0\n\ndevOffline\030\361\007 \001(\0132\031.u727.MgwDevOfflin"
+  "eNotifyH\000\0221\n\014streamStatus\030\362\007 \001(\0132\030.u727."
+  "StreamStatusNotifyH\000\022;\n\024devStartStreamNo"
+  "tify\030\363\007 \001(\0132\032.u727.DevStartStreamNotifyH"
+  "\000\0229\n\023devStopStreamNotify\030\364\007 \001(\0132\031.u727.D"
+  "evStopStreamNotifyH\000\022)\n\ru727keepAlive\030\365\007"
+  " \001(\0132\017.u727.KeepAliveH\000\0225\n\021queryOnlineDe"
+  "vReq\030\366\007 \001(\0132\027.u727.QueryOnlineDevReqH\000\0229"
+  "\n\023queryOnlineDevReply\030\367\007 \001(\0132\031.u727.Quer"
+  "yOnlineDevReplyH\000B\t\n\007Messageb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_mgw_2eproto_deps[2] = {
   &::descriptor_table_device_2eproto,
@@ -197,7 +197,7 @@ static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_mgw
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_mgw_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_mgw_2eproto = {
-  false, false, descriptor_table_protodef_mgw_2eproto, "mgw.proto", 1580,
+  false, false, descriptor_table_protodef_mgw_2eproto, "mgw.proto", 1596,
   &descriptor_table_mgw_2eproto_once, descriptor_table_mgw_2eproto_sccs, descriptor_table_mgw_2eproto_deps, 1, 2,
   schemas, file_default_instances, TableStruct_mgw_2eproto::offsets,
   file_level_metadata_mgw_2eproto, 1, file_level_enum_descriptors_mgw_2eproto, file_level_service_descriptors_mgw_2eproto,
@@ -225,6 +225,7 @@ class MgwMsg::_Internal {
   static const ::device::QuerySource& querysource(const MgwMsg* msg);
   static const ::device::SetPullAttr& setpullattr(const MgwMsg* msg);
   static const ::device::PushStreamReq& pushstreamreq(const MgwMsg* msg);
+  static const ::device::ServerKeepAlive& keepalive(const MgwMsg* msg);
   static const ::u727::SetDevBlacklist& setblacklist(const MgwMsg* msg);
   static const ::u727::SetLocalSvcPortReq& setsvcportreq(const MgwMsg* msg);
   static const ::u727::SetLocalSvcPortReply& setsvcportreply(const MgwMsg* msg);
@@ -241,7 +242,6 @@ class MgwMsg::_Internal {
   static const ::u727::KeepAlive& u727keepalive(const MgwMsg* msg);
   static const ::u727::QueryOnlineDevReq& queryonlinedevreq(const MgwMsg* msg);
   static const ::u727::QueryOnlineDevReply& queryonlinedevreply(const MgwMsg* msg);
-  static const ::device::ServerKeepAlive& keepalive(const MgwMsg* msg);
 };
 
 const ::device::CommonRsp&
@@ -299,6 +299,10 @@ MgwMsg::_Internal::setpullattr(const MgwMsg* msg) {
 const ::device::PushStreamReq&
 MgwMsg::_Internal::pushstreamreq(const MgwMsg* msg) {
   return *msg->Message_.pushstreamreq_;
+}
+const ::device::ServerKeepAlive&
+MgwMsg::_Internal::keepalive(const MgwMsg* msg) {
+  return *msg->Message_.keepalive_;
 }
 const ::u727::SetDevBlacklist&
 MgwMsg::_Internal::setblacklist(const MgwMsg* msg) {
@@ -363,10 +367,6 @@ MgwMsg::_Internal::queryonlinedevreq(const MgwMsg* msg) {
 const ::u727::QueryOnlineDevReply&
 MgwMsg::_Internal::queryonlinedevreply(const MgwMsg* msg) {
   return *msg->Message_.queryonlinedevreply_;
-}
-const ::device::ServerKeepAlive&
-MgwMsg::_Internal::keepalive(const MgwMsg* msg) {
-  return *msg->Message_.keepalive_;
 }
 void MgwMsg::set_allocated_response(::device::CommonRsp* response) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArena();
@@ -686,6 +686,29 @@ void MgwMsg::clear_pushstreamreq() {
   if (_internal_has_pushstreamreq()) {
     if (GetArena() == nullptr) {
       delete Message_.pushstreamreq_;
+    }
+    clear_has_Message();
+  }
+}
+void MgwMsg::set_allocated_keepalive(::device::ServerKeepAlive* keepalive) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArena();
+  clear_Message();
+  if (keepalive) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(keepalive)->GetArena();
+    if (message_arena != submessage_arena) {
+      keepalive = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, keepalive, submessage_arena);
+    }
+    set_has_keepalive();
+    Message_.keepalive_ = keepalive;
+  }
+  // @@protoc_insertion_point(field_set_allocated:mgw.MgwMsg.keepAlive)
+}
+void MgwMsg::clear_keepalive() {
+  if (_internal_has_keepalive()) {
+    if (GetArena() == nullptr) {
+      delete Message_.keepalive_;
     }
     clear_has_Message();
   }
@@ -1058,29 +1081,6 @@ void MgwMsg::clear_queryonlinedevreply() {
     clear_has_Message();
   }
 }
-void MgwMsg::set_allocated_keepalive(::device::ServerKeepAlive* keepalive) {
-  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArena();
-  clear_Message();
-  if (keepalive) {
-    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-      reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(keepalive)->GetArena();
-    if (message_arena != submessage_arena) {
-      keepalive = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
-          message_arena, keepalive, submessage_arena);
-    }
-    set_has_keepalive();
-    Message_.keepalive_ = keepalive;
-  }
-  // @@protoc_insertion_point(field_set_allocated:mgw.MgwMsg.keepAlive)
-}
-void MgwMsg::clear_keepalive() {
-  if (_internal_has_keepalive()) {
-    if (GetArena() == nullptr) {
-      delete Message_.keepalive_;
-    }
-    clear_has_Message();
-  }
-}
 MgwMsg::MgwMsg(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor();
@@ -1148,6 +1148,10 @@ MgwMsg::MgwMsg(const MgwMsg& from)
       _internal_mutable_pushstreamreq()->::device::PushStreamReq::MergeFrom(from._internal_pushstreamreq());
       break;
     }
+    case kKeepAlive: {
+      _internal_mutable_keepalive()->::device::ServerKeepAlive::MergeFrom(from._internal_keepalive());
+      break;
+    }
     case kSetBlackList: {
       _internal_mutable_setblacklist()->::u727::SetDevBlacklist::MergeFrom(from._internal_setblacklist());
       break;
@@ -1210,10 +1214,6 @@ MgwMsg::MgwMsg(const MgwMsg& from)
     }
     case kQueryOnlineDevReply: {
       _internal_mutable_queryonlinedevreply()->::u727::QueryOnlineDevReply::MergeFrom(from._internal_queryonlinedevreply());
-      break;
-    }
-    case kKeepAlive: {
-      _internal_mutable_keepalive()->::device::ServerKeepAlive::MergeFrom(from._internal_keepalive());
       break;
     }
     case MESSAGE_NOT_SET: {
@@ -1343,6 +1343,12 @@ void MgwMsg::clear_Message() {
       }
       break;
     }
+    case kKeepAlive: {
+      if (GetArena() == nullptr) {
+        delete Message_.keepalive_;
+      }
+      break;
+    }
     case kSetBlackList: {
       if (GetArena() == nullptr) {
         delete Message_.setblacklist_;
@@ -1436,12 +1442,6 @@ void MgwMsg::clear_Message() {
     case kQueryOnlineDevReply: {
       if (GetArena() == nullptr) {
         delete Message_.queryonlinedevreply_;
-      }
-      break;
-    }
-    case kKeepAlive: {
-      if (GetArena() == nullptr) {
-        delete Message_.keepalive_;
       }
       break;
     }
@@ -1568,121 +1568,121 @@ const char* MgwMsg::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::int
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
-      // .u727.SetDevBlacklist setBlackList = 34;
+      // .device.ServerKeepAlive keepAlive = 34;
       case 34:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
-          ptr = ctx->ParseMessage(_internal_mutable_setblacklist(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.SetLocalSvcPortReq setSvcPortReq = 35;
-      case 35:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 26)) {
-          ptr = ctx->ParseMessage(_internal_mutable_setsvcportreq(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.SetLocalSvcPortReply setSvcPortReply = 36;
-      case 36:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 34)) {
-          ptr = ctx->ParseMessage(_internal_mutable_setsvcportreply(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.GetLocalSvcPortReq getSvcPortReq = 37;
-      case 37:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 42)) {
-          ptr = ctx->ParseMessage(_internal_mutable_getsvcportreq(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.GetLocalSvcPortReply getSvcPortReply = 38;
-      case 38:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 50)) {
-          ptr = ctx->ParseMessage(_internal_mutable_getsvcportreply(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.StartStreamReq startStreamReq = 39;
-      case 39:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 58)) {
-          ptr = ctx->ParseMessage(_internal_mutable_startstreamreq(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.StartStreamReply startStreamReply = 40;
-      case 40:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 66)) {
-          ptr = ctx->ParseMessage(_internal_mutable_startstreamreply(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.StopStreamReq stopStream = 41;
-      case 41:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 74)) {
-          ptr = ctx->ParseMessage(_internal_mutable_stopstream(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.MgwDevOnlineNotify devOnline = 42;
-      case 42:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 82)) {
-          ptr = ctx->ParseMessage(_internal_mutable_devonline(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.MgwDevOfflineNotify devOffline = 43;
-      case 43:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 90)) {
-          ptr = ctx->ParseMessage(_internal_mutable_devoffline(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.StreamStatusNotify streamStatus = 44;
-      case 44:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 98)) {
-          ptr = ctx->ParseMessage(_internal_mutable_streamstatus(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.DevStartStreamNotify devStartStreamNotify = 45;
-      case 45:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 106)) {
-          ptr = ctx->ParseMessage(_internal_mutable_devstartstreamnotify(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .u727.DevStopStreamNotify devStopStreamNotify = 46;
-      case 46:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 114)) {
-          ptr = ctx->ParseMessage(_internal_mutable_devstopstreamnotify(), ptr);
-          CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .device.ServerKeepAlive keepAlive = 47;
-      case 47:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 122)) {
           ptr = ctx->ParseMessage(_internal_mutable_keepalive(), ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
-      // .u727.KeepAlive u727keepAlive = 48;
-      case 48:
+      // .u727.SetDevBlacklist setBlackList = 1000;
+      case 1000:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 66)) {
+          ptr = ctx->ParseMessage(_internal_mutable_setblacklist(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.SetLocalSvcPortReq setSvcPortReq = 1001;
+      case 1001:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 74)) {
+          ptr = ctx->ParseMessage(_internal_mutable_setsvcportreq(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.SetLocalSvcPortReply setSvcPortReply = 1002;
+      case 1002:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 82)) {
+          ptr = ctx->ParseMessage(_internal_mutable_setsvcportreply(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.GetLocalSvcPortReq getSvcPortReq = 1003;
+      case 1003:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 90)) {
+          ptr = ctx->ParseMessage(_internal_mutable_getsvcportreq(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.GetLocalSvcPortReply getSvcPortReply = 1004;
+      case 1004:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 98)) {
+          ptr = ctx->ParseMessage(_internal_mutable_getsvcportreply(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.StartStreamReq startStreamReq = 1005;
+      case 1005:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 106)) {
+          ptr = ctx->ParseMessage(_internal_mutable_startstreamreq(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.StartStreamReply startStreamReply = 1006;
+      case 1006:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 114)) {
+          ptr = ctx->ParseMessage(_internal_mutable_startstreamreply(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.StopStreamReq stopStream = 1007;
+      case 1007:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 122)) {
+          ptr = ctx->ParseMessage(_internal_mutable_stopstream(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.MgwDevOnlineNotify devOnline = 1008;
+      case 1008:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 130)) {
+          ptr = ctx->ParseMessage(_internal_mutable_devonline(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.MgwDevOfflineNotify devOffline = 1009;
+      case 1009:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 138)) {
+          ptr = ctx->ParseMessage(_internal_mutable_devoffline(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.StreamStatusNotify streamStatus = 1010;
+      case 1010:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 146)) {
+          ptr = ctx->ParseMessage(_internal_mutable_streamstatus(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.DevStartStreamNotify devStartStreamNotify = 1011;
+      case 1011:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 154)) {
+          ptr = ctx->ParseMessage(_internal_mutable_devstartstreamnotify(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.DevStopStreamNotify devStopStreamNotify = 1012;
+      case 1012:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 162)) {
+          ptr = ctx->ParseMessage(_internal_mutable_devstopstreamnotify(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .u727.KeepAlive u727keepAlive = 1013;
+      case 1013:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 170)) {
           ptr = ctx->ParseMessage(_internal_mutable_u727keepalive(), ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
-      // .u727.QueryOnlineDevReq queryOnlineDevReq = 49;
-      case 49:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 138)) {
+      // .u727.QueryOnlineDevReq queryOnlineDevReq = 1014;
+      case 1014:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 178)) {
           ptr = ctx->ParseMessage(_internal_mutable_queryonlinedevreq(), ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
-      // .u727.QueryOnlineDevReply queryOnlineDevReply = 50;
-      case 50:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 146)) {
+      // .u727.QueryOnlineDevReply queryOnlineDevReply = 1015;
+      case 1015:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 186)) {
           ptr = ctx->ParseMessage(_internal_mutable_queryonlinedevreply(), ptr);
           CHK_(ptr);
         } else goto handle_unusual;
@@ -1827,140 +1827,140 @@ failure:
         33, _Internal::pushstreamreq(this), target, stream);
   }
 
-  // .u727.SetDevBlacklist setBlackList = 34;
-  if (_internal_has_setblacklist()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        34, _Internal::setblacklist(this), target, stream);
-  }
-
-  // .u727.SetLocalSvcPortReq setSvcPortReq = 35;
-  if (_internal_has_setsvcportreq()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        35, _Internal::setsvcportreq(this), target, stream);
-  }
-
-  // .u727.SetLocalSvcPortReply setSvcPortReply = 36;
-  if (_internal_has_setsvcportreply()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        36, _Internal::setsvcportreply(this), target, stream);
-  }
-
-  // .u727.GetLocalSvcPortReq getSvcPortReq = 37;
-  if (_internal_has_getsvcportreq()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        37, _Internal::getsvcportreq(this), target, stream);
-  }
-
-  // .u727.GetLocalSvcPortReply getSvcPortReply = 38;
-  if (_internal_has_getsvcportreply()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        38, _Internal::getsvcportreply(this), target, stream);
-  }
-
-  // .u727.StartStreamReq startStreamReq = 39;
-  if (_internal_has_startstreamreq()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        39, _Internal::startstreamreq(this), target, stream);
-  }
-
-  // .u727.StartStreamReply startStreamReply = 40;
-  if (_internal_has_startstreamreply()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        40, _Internal::startstreamreply(this), target, stream);
-  }
-
-  // .u727.StopStreamReq stopStream = 41;
-  if (_internal_has_stopstream()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        41, _Internal::stopstream(this), target, stream);
-  }
-
-  // .u727.MgwDevOnlineNotify devOnline = 42;
-  if (_internal_has_devonline()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        42, _Internal::devonline(this), target, stream);
-  }
-
-  // .u727.MgwDevOfflineNotify devOffline = 43;
-  if (_internal_has_devoffline()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        43, _Internal::devoffline(this), target, stream);
-  }
-
-  // .u727.StreamStatusNotify streamStatus = 44;
-  if (_internal_has_streamstatus()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        44, _Internal::streamstatus(this), target, stream);
-  }
-
-  // .u727.DevStartStreamNotify devStartStreamNotify = 45;
-  if (_internal_has_devstartstreamnotify()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        45, _Internal::devstartstreamnotify(this), target, stream);
-  }
-
-  // .u727.DevStopStreamNotify devStopStreamNotify = 46;
-  if (_internal_has_devstopstreamnotify()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        46, _Internal::devstopstreamnotify(this), target, stream);
-  }
-
-  // .device.ServerKeepAlive keepAlive = 47;
+  // .device.ServerKeepAlive keepAlive = 34;
   if (_internal_has_keepalive()) {
     target = stream->EnsureSpace(target);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
       InternalWriteMessage(
-        47, _Internal::keepalive(this), target, stream);
+        34, _Internal::keepalive(this), target, stream);
   }
 
-  // .u727.KeepAlive u727keepAlive = 48;
+  // .u727.SetDevBlacklist setBlackList = 1000;
+  if (_internal_has_setblacklist()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1000, _Internal::setblacklist(this), target, stream);
+  }
+
+  // .u727.SetLocalSvcPortReq setSvcPortReq = 1001;
+  if (_internal_has_setsvcportreq()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1001, _Internal::setsvcportreq(this), target, stream);
+  }
+
+  // .u727.SetLocalSvcPortReply setSvcPortReply = 1002;
+  if (_internal_has_setsvcportreply()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1002, _Internal::setsvcportreply(this), target, stream);
+  }
+
+  // .u727.GetLocalSvcPortReq getSvcPortReq = 1003;
+  if (_internal_has_getsvcportreq()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1003, _Internal::getsvcportreq(this), target, stream);
+  }
+
+  // .u727.GetLocalSvcPortReply getSvcPortReply = 1004;
+  if (_internal_has_getsvcportreply()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1004, _Internal::getsvcportreply(this), target, stream);
+  }
+
+  // .u727.StartStreamReq startStreamReq = 1005;
+  if (_internal_has_startstreamreq()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1005, _Internal::startstreamreq(this), target, stream);
+  }
+
+  // .u727.StartStreamReply startStreamReply = 1006;
+  if (_internal_has_startstreamreply()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1006, _Internal::startstreamreply(this), target, stream);
+  }
+
+  // .u727.StopStreamReq stopStream = 1007;
+  if (_internal_has_stopstream()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1007, _Internal::stopstream(this), target, stream);
+  }
+
+  // .u727.MgwDevOnlineNotify devOnline = 1008;
+  if (_internal_has_devonline()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1008, _Internal::devonline(this), target, stream);
+  }
+
+  // .u727.MgwDevOfflineNotify devOffline = 1009;
+  if (_internal_has_devoffline()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1009, _Internal::devoffline(this), target, stream);
+  }
+
+  // .u727.StreamStatusNotify streamStatus = 1010;
+  if (_internal_has_streamstatus()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1010, _Internal::streamstatus(this), target, stream);
+  }
+
+  // .u727.DevStartStreamNotify devStartStreamNotify = 1011;
+  if (_internal_has_devstartstreamnotify()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1011, _Internal::devstartstreamnotify(this), target, stream);
+  }
+
+  // .u727.DevStopStreamNotify devStopStreamNotify = 1012;
+  if (_internal_has_devstopstreamnotify()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        1012, _Internal::devstopstreamnotify(this), target, stream);
+  }
+
+  // .u727.KeepAlive u727keepAlive = 1013;
   if (_internal_has_u727keepalive()) {
     target = stream->EnsureSpace(target);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
       InternalWriteMessage(
-        48, _Internal::u727keepalive(this), target, stream);
+        1013, _Internal::u727keepalive(this), target, stream);
   }
 
-  // .u727.QueryOnlineDevReq queryOnlineDevReq = 49;
+  // .u727.QueryOnlineDevReq queryOnlineDevReq = 1014;
   if (_internal_has_queryonlinedevreq()) {
     target = stream->EnsureSpace(target);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
       InternalWriteMessage(
-        49, _Internal::queryonlinedevreq(this), target, stream);
+        1014, _Internal::queryonlinedevreq(this), target, stream);
   }
 
-  // .u727.QueryOnlineDevReply queryOnlineDevReply = 50;
+  // .u727.QueryOnlineDevReply queryOnlineDevReply = 1015;
   if (_internal_has_queryonlinedevreply()) {
     target = stream->EnsureSpace(target);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
       InternalWriteMessage(
-        50, _Internal::queryonlinedevreply(this), target, stream);
+        1015, _Internal::queryonlinedevreply(this), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2078,123 +2078,123 @@ size_t MgwMsg::ByteSizeLong() const {
           *Message_.pushstreamreq_);
       break;
     }
-    // .u727.SetDevBlacklist setBlackList = 34;
+    // .device.ServerKeepAlive keepAlive = 34;
+    case kKeepAlive: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *Message_.keepalive_);
+      break;
+    }
+    // .u727.SetDevBlacklist setBlackList = 1000;
     case kSetBlackList: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.setblacklist_);
       break;
     }
-    // .u727.SetLocalSvcPortReq setSvcPortReq = 35;
+    // .u727.SetLocalSvcPortReq setSvcPortReq = 1001;
     case kSetSvcPortReq: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.setsvcportreq_);
       break;
     }
-    // .u727.SetLocalSvcPortReply setSvcPortReply = 36;
+    // .u727.SetLocalSvcPortReply setSvcPortReply = 1002;
     case kSetSvcPortReply: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.setsvcportreply_);
       break;
     }
-    // .u727.GetLocalSvcPortReq getSvcPortReq = 37;
+    // .u727.GetLocalSvcPortReq getSvcPortReq = 1003;
     case kGetSvcPortReq: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.getsvcportreq_);
       break;
     }
-    // .u727.GetLocalSvcPortReply getSvcPortReply = 38;
+    // .u727.GetLocalSvcPortReply getSvcPortReply = 1004;
     case kGetSvcPortReply: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.getsvcportreply_);
       break;
     }
-    // .u727.StartStreamReq startStreamReq = 39;
+    // .u727.StartStreamReq startStreamReq = 1005;
     case kStartStreamReq: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.startstreamreq_);
       break;
     }
-    // .u727.StartStreamReply startStreamReply = 40;
+    // .u727.StartStreamReply startStreamReply = 1006;
     case kStartStreamReply: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.startstreamreply_);
       break;
     }
-    // .u727.StopStreamReq stopStream = 41;
+    // .u727.StopStreamReq stopStream = 1007;
     case kStopStream: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.stopstream_);
       break;
     }
-    // .u727.MgwDevOnlineNotify devOnline = 42;
+    // .u727.MgwDevOnlineNotify devOnline = 1008;
     case kDevOnline: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.devonline_);
       break;
     }
-    // .u727.MgwDevOfflineNotify devOffline = 43;
+    // .u727.MgwDevOfflineNotify devOffline = 1009;
     case kDevOffline: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.devoffline_);
       break;
     }
-    // .u727.StreamStatusNotify streamStatus = 44;
+    // .u727.StreamStatusNotify streamStatus = 1010;
     case kStreamStatus: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.streamstatus_);
       break;
     }
-    // .u727.DevStartStreamNotify devStartStreamNotify = 45;
+    // .u727.DevStartStreamNotify devStartStreamNotify = 1011;
     case kDevStartStreamNotify: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.devstartstreamnotify_);
       break;
     }
-    // .u727.DevStopStreamNotify devStopStreamNotify = 46;
+    // .u727.DevStopStreamNotify devStopStreamNotify = 1012;
     case kDevStopStreamNotify: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.devstopstreamnotify_);
       break;
     }
-    // .u727.KeepAlive u727keepAlive = 48;
+    // .u727.KeepAlive u727keepAlive = 1013;
     case kU727KeepAlive: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.u727keepalive_);
       break;
     }
-    // .u727.QueryOnlineDevReq queryOnlineDevReq = 49;
+    // .u727.QueryOnlineDevReq queryOnlineDevReq = 1014;
     case kQueryOnlineDevReq: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.queryonlinedevreq_);
       break;
     }
-    // .u727.QueryOnlineDevReply queryOnlineDevReply = 50;
+    // .u727.QueryOnlineDevReply queryOnlineDevReply = 1015;
     case kQueryOnlineDevReply: {
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *Message_.queryonlinedevreply_);
-      break;
-    }
-    // .device.ServerKeepAlive keepAlive = 47;
-    case kKeepAlive: {
-      total_size += 2 +
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-          *Message_.keepalive_);
       break;
     }
     case MESSAGE_NOT_SET: {
@@ -2289,6 +2289,10 @@ void MgwMsg::MergeFrom(const MgwMsg& from) {
       _internal_mutable_pushstreamreq()->::device::PushStreamReq::MergeFrom(from._internal_pushstreamreq());
       break;
     }
+    case kKeepAlive: {
+      _internal_mutable_keepalive()->::device::ServerKeepAlive::MergeFrom(from._internal_keepalive());
+      break;
+    }
     case kSetBlackList: {
       _internal_mutable_setblacklist()->::u727::SetDevBlacklist::MergeFrom(from._internal_setblacklist());
       break;
@@ -2351,10 +2355,6 @@ void MgwMsg::MergeFrom(const MgwMsg& from) {
     }
     case kQueryOnlineDevReply: {
       _internal_mutable_queryonlinedevreply()->::u727::QueryOnlineDevReply::MergeFrom(from._internal_queryonlinedevreply());
-      break;
-    }
-    case kKeepAlive: {
-      _internal_mutable_keepalive()->::device::ServerKeepAlive::MergeFrom(from._internal_keepalive());
       break;
     }
     case MESSAGE_NOT_SET: {

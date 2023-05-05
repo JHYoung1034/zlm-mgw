@@ -118,23 +118,23 @@ class MgwMsg PROTOBUF_FINAL :
     kQuerySource = 31,
     kSetPullAttr = 32,
     kPushStreamReq = 33,
-    kSetBlackList = 34,
-    kSetSvcPortReq = 35,
-    kSetSvcPortReply = 36,
-    kGetSvcPortReq = 37,
-    kGetSvcPortReply = 38,
-    kStartStreamReq = 39,
-    kStartStreamReply = 40,
-    kStopStream = 41,
-    kDevOnline = 42,
-    kDevOffline = 43,
-    kStreamStatus = 44,
-    kDevStartStreamNotify = 45,
-    kDevStopStreamNotify = 46,
-    kU727KeepAlive = 48,
-    kQueryOnlineDevReq = 49,
-    kQueryOnlineDevReply = 50,
-    kKeepAlive = 47,
+    kKeepAlive = 34,
+    kSetBlackList = 1000,
+    kSetSvcPortReq = 1001,
+    kSetSvcPortReply = 1002,
+    kGetSvcPortReq = 1003,
+    kGetSvcPortReply = 1004,
+    kStartStreamReq = 1005,
+    kStartStreamReply = 1006,
+    kStopStream = 1007,
+    kDevOnline = 1008,
+    kDevOffline = 1009,
+    kStreamStatus = 1010,
+    kDevStartStreamNotify = 1011,
+    kDevStopStreamNotify = 1012,
+    kU727KeepAlive = 1013,
+    kQueryOnlineDevReq = 1014,
+    kQueryOnlineDevReply = 1015,
     MESSAGE_NOT_SET = 0,
   };
 
@@ -228,23 +228,23 @@ class MgwMsg PROTOBUF_FINAL :
     kQuerySourceFieldNumber = 31,
     kSetPullAttrFieldNumber = 32,
     kPushStreamReqFieldNumber = 33,
-    kSetBlackListFieldNumber = 34,
-    kSetSvcPortReqFieldNumber = 35,
-    kSetSvcPortReplyFieldNumber = 36,
-    kGetSvcPortReqFieldNumber = 37,
-    kGetSvcPortReplyFieldNumber = 38,
-    kStartStreamReqFieldNumber = 39,
-    kStartStreamReplyFieldNumber = 40,
-    kStopStreamFieldNumber = 41,
-    kDevOnlineFieldNumber = 42,
-    kDevOfflineFieldNumber = 43,
-    kStreamStatusFieldNumber = 44,
-    kDevStartStreamNotifyFieldNumber = 45,
-    kDevStopStreamNotifyFieldNumber = 46,
-    kU727KeepAliveFieldNumber = 48,
-    kQueryOnlineDevReqFieldNumber = 49,
-    kQueryOnlineDevReplyFieldNumber = 50,
-    kKeepAliveFieldNumber = 47,
+    kKeepAliveFieldNumber = 34,
+    kSetBlackListFieldNumber = 1000,
+    kSetSvcPortReqFieldNumber = 1001,
+    kSetSvcPortReplyFieldNumber = 1002,
+    kGetSvcPortReqFieldNumber = 1003,
+    kGetSvcPortReplyFieldNumber = 1004,
+    kStartStreamReqFieldNumber = 1005,
+    kStartStreamReplyFieldNumber = 1006,
+    kStopStreamFieldNumber = 1007,
+    kDevOnlineFieldNumber = 1008,
+    kDevOfflineFieldNumber = 1009,
+    kStreamStatusFieldNumber = 1010,
+    kDevStartStreamNotifyFieldNumber = 1011,
+    kDevStopStreamNotifyFieldNumber = 1012,
+    kU727KeepAliveFieldNumber = 1013,
+    kQueryOnlineDevReqFieldNumber = 1014,
+    kQueryOnlineDevReplyFieldNumber = 1015,
   };
   // .device.CommonRsp response = 20;
   bool has_response() const;
@@ -498,7 +498,25 @@ class MgwMsg PROTOBUF_FINAL :
       ::device::PushStreamReq* pushstreamreq);
   ::device::PushStreamReq* unsafe_arena_release_pushstreamreq();
 
-  // .u727.SetDevBlacklist setBlackList = 34;
+  // .device.ServerKeepAlive keepAlive = 34;
+  bool has_keepalive() const;
+  private:
+  bool _internal_has_keepalive() const;
+  public:
+  void clear_keepalive();
+  const ::device::ServerKeepAlive& keepalive() const;
+  ::device::ServerKeepAlive* release_keepalive();
+  ::device::ServerKeepAlive* mutable_keepalive();
+  void set_allocated_keepalive(::device::ServerKeepAlive* keepalive);
+  private:
+  const ::device::ServerKeepAlive& _internal_keepalive() const;
+  ::device::ServerKeepAlive* _internal_mutable_keepalive();
+  public:
+  void unsafe_arena_set_allocated_keepalive(
+      ::device::ServerKeepAlive* keepalive);
+  ::device::ServerKeepAlive* unsafe_arena_release_keepalive();
+
+  // .u727.SetDevBlacklist setBlackList = 1000;
   bool has_setblacklist() const;
   private:
   bool _internal_has_setblacklist() const;
@@ -516,7 +534,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::SetDevBlacklist* setblacklist);
   ::u727::SetDevBlacklist* unsafe_arena_release_setblacklist();
 
-  // .u727.SetLocalSvcPortReq setSvcPortReq = 35;
+  // .u727.SetLocalSvcPortReq setSvcPortReq = 1001;
   bool has_setsvcportreq() const;
   private:
   bool _internal_has_setsvcportreq() const;
@@ -534,7 +552,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::SetLocalSvcPortReq* setsvcportreq);
   ::u727::SetLocalSvcPortReq* unsafe_arena_release_setsvcportreq();
 
-  // .u727.SetLocalSvcPortReply setSvcPortReply = 36;
+  // .u727.SetLocalSvcPortReply setSvcPortReply = 1002;
   bool has_setsvcportreply() const;
   private:
   bool _internal_has_setsvcportreply() const;
@@ -552,7 +570,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::SetLocalSvcPortReply* setsvcportreply);
   ::u727::SetLocalSvcPortReply* unsafe_arena_release_setsvcportreply();
 
-  // .u727.GetLocalSvcPortReq getSvcPortReq = 37;
+  // .u727.GetLocalSvcPortReq getSvcPortReq = 1003;
   bool has_getsvcportreq() const;
   private:
   bool _internal_has_getsvcportreq() const;
@@ -570,7 +588,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::GetLocalSvcPortReq* getsvcportreq);
   ::u727::GetLocalSvcPortReq* unsafe_arena_release_getsvcportreq();
 
-  // .u727.GetLocalSvcPortReply getSvcPortReply = 38;
+  // .u727.GetLocalSvcPortReply getSvcPortReply = 1004;
   bool has_getsvcportreply() const;
   private:
   bool _internal_has_getsvcportreply() const;
@@ -588,7 +606,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::GetLocalSvcPortReply* getsvcportreply);
   ::u727::GetLocalSvcPortReply* unsafe_arena_release_getsvcportreply();
 
-  // .u727.StartStreamReq startStreamReq = 39;
+  // .u727.StartStreamReq startStreamReq = 1005;
   bool has_startstreamreq() const;
   private:
   bool _internal_has_startstreamreq() const;
@@ -606,7 +624,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::StartStreamReq* startstreamreq);
   ::u727::StartStreamReq* unsafe_arena_release_startstreamreq();
 
-  // .u727.StartStreamReply startStreamReply = 40;
+  // .u727.StartStreamReply startStreamReply = 1006;
   bool has_startstreamreply() const;
   private:
   bool _internal_has_startstreamreply() const;
@@ -624,7 +642,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::StartStreamReply* startstreamreply);
   ::u727::StartStreamReply* unsafe_arena_release_startstreamreply();
 
-  // .u727.StopStreamReq stopStream = 41;
+  // .u727.StopStreamReq stopStream = 1007;
   bool has_stopstream() const;
   private:
   bool _internal_has_stopstream() const;
@@ -642,7 +660,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::StopStreamReq* stopstream);
   ::u727::StopStreamReq* unsafe_arena_release_stopstream();
 
-  // .u727.MgwDevOnlineNotify devOnline = 42;
+  // .u727.MgwDevOnlineNotify devOnline = 1008;
   bool has_devonline() const;
   private:
   bool _internal_has_devonline() const;
@@ -660,7 +678,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::MgwDevOnlineNotify* devonline);
   ::u727::MgwDevOnlineNotify* unsafe_arena_release_devonline();
 
-  // .u727.MgwDevOfflineNotify devOffline = 43;
+  // .u727.MgwDevOfflineNotify devOffline = 1009;
   bool has_devoffline() const;
   private:
   bool _internal_has_devoffline() const;
@@ -678,7 +696,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::MgwDevOfflineNotify* devoffline);
   ::u727::MgwDevOfflineNotify* unsafe_arena_release_devoffline();
 
-  // .u727.StreamStatusNotify streamStatus = 44;
+  // .u727.StreamStatusNotify streamStatus = 1010;
   bool has_streamstatus() const;
   private:
   bool _internal_has_streamstatus() const;
@@ -696,7 +714,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::StreamStatusNotify* streamstatus);
   ::u727::StreamStatusNotify* unsafe_arena_release_streamstatus();
 
-  // .u727.DevStartStreamNotify devStartStreamNotify = 45;
+  // .u727.DevStartStreamNotify devStartStreamNotify = 1011;
   bool has_devstartstreamnotify() const;
   private:
   bool _internal_has_devstartstreamnotify() const;
@@ -714,7 +732,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::DevStartStreamNotify* devstartstreamnotify);
   ::u727::DevStartStreamNotify* unsafe_arena_release_devstartstreamnotify();
 
-  // .u727.DevStopStreamNotify devStopStreamNotify = 46;
+  // .u727.DevStopStreamNotify devStopStreamNotify = 1012;
   bool has_devstopstreamnotify() const;
   private:
   bool _internal_has_devstopstreamnotify() const;
@@ -732,7 +750,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::DevStopStreamNotify* devstopstreamnotify);
   ::u727::DevStopStreamNotify* unsafe_arena_release_devstopstreamnotify();
 
-  // .u727.KeepAlive u727keepAlive = 48;
+  // .u727.KeepAlive u727keepAlive = 1013;
   bool has_u727keepalive() const;
   private:
   bool _internal_has_u727keepalive() const;
@@ -750,7 +768,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::KeepAlive* u727keepalive);
   ::u727::KeepAlive* unsafe_arena_release_u727keepalive();
 
-  // .u727.QueryOnlineDevReq queryOnlineDevReq = 49;
+  // .u727.QueryOnlineDevReq queryOnlineDevReq = 1014;
   bool has_queryonlinedevreq() const;
   private:
   bool _internal_has_queryonlinedevreq() const;
@@ -768,7 +786,7 @@ class MgwMsg PROTOBUF_FINAL :
       ::u727::QueryOnlineDevReq* queryonlinedevreq);
   ::u727::QueryOnlineDevReq* unsafe_arena_release_queryonlinedevreq();
 
-  // .u727.QueryOnlineDevReply queryOnlineDevReply = 50;
+  // .u727.QueryOnlineDevReply queryOnlineDevReply = 1015;
   bool has_queryonlinedevreply() const;
   private:
   bool _internal_has_queryonlinedevreply() const;
@@ -785,24 +803,6 @@ class MgwMsg PROTOBUF_FINAL :
   void unsafe_arena_set_allocated_queryonlinedevreply(
       ::u727::QueryOnlineDevReply* queryonlinedevreply);
   ::u727::QueryOnlineDevReply* unsafe_arena_release_queryonlinedevreply();
-
-  // .device.ServerKeepAlive keepAlive = 47;
-  bool has_keepalive() const;
-  private:
-  bool _internal_has_keepalive() const;
-  public:
-  void clear_keepalive();
-  const ::device::ServerKeepAlive& keepalive() const;
-  ::device::ServerKeepAlive* release_keepalive();
-  ::device::ServerKeepAlive* mutable_keepalive();
-  void set_allocated_keepalive(::device::ServerKeepAlive* keepalive);
-  private:
-  const ::device::ServerKeepAlive& _internal_keepalive() const;
-  ::device::ServerKeepAlive* _internal_mutable_keepalive();
-  public:
-  void unsafe_arena_set_allocated_keepalive(
-      ::device::ServerKeepAlive* keepalive);
-  ::device::ServerKeepAlive* unsafe_arena_release_keepalive();
 
   void clear_Message();
   MessageCase Message_case() const;
@@ -823,6 +823,7 @@ class MgwMsg PROTOBUF_FINAL :
   void set_has_querysource();
   void set_has_setpullattr();
   void set_has_pushstreamreq();
+  void set_has_keepalive();
   void set_has_setblacklist();
   void set_has_setsvcportreq();
   void set_has_setsvcportreply();
@@ -839,7 +840,6 @@ class MgwMsg PROTOBUF_FINAL :
   void set_has_u727keepalive();
   void set_has_queryonlinedevreq();
   void set_has_queryonlinedevreply();
-  void set_has_keepalive();
 
   inline bool has_Message() const;
   inline void clear_has_Message();
@@ -863,6 +863,7 @@ class MgwMsg PROTOBUF_FINAL :
     ::device::QuerySource* querysource_;
     ::device::SetPullAttr* setpullattr_;
     ::device::PushStreamReq* pushstreamreq_;
+    ::device::ServerKeepAlive* keepalive_;
     ::u727::SetDevBlacklist* setblacklist_;
     ::u727::SetLocalSvcPortReq* setsvcportreq_;
     ::u727::SetLocalSvcPortReply* setsvcportreply_;
@@ -879,7 +880,6 @@ class MgwMsg PROTOBUF_FINAL :
     ::u727::KeepAlive* u727keepalive_;
     ::u727::QueryOnlineDevReq* queryonlinedevreq_;
     ::u727::QueryOnlineDevReply* queryonlinedevreply_;
-    ::device::ServerKeepAlive* keepalive_;
   } Message_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   ::PROTOBUF_NAMESPACE_ID::uint32 _oneof_case_[1];
@@ -1807,7 +1807,72 @@ inline ::device::PushStreamReq* MgwMsg::mutable_pushstreamreq() {
   return _internal_mutable_pushstreamreq();
 }
 
-// .u727.SetDevBlacklist setBlackList = 34;
+// .device.ServerKeepAlive keepAlive = 34;
+inline bool MgwMsg::_internal_has_keepalive() const {
+  return Message_case() == kKeepAlive;
+}
+inline bool MgwMsg::has_keepalive() const {
+  return _internal_has_keepalive();
+}
+inline void MgwMsg::set_has_keepalive() {
+  _oneof_case_[0] = kKeepAlive;
+}
+inline ::device::ServerKeepAlive* MgwMsg::release_keepalive() {
+  // @@protoc_insertion_point(field_release:mgw.MgwMsg.keepAlive)
+  if (_internal_has_keepalive()) {
+    clear_has_Message();
+      ::device::ServerKeepAlive* temp = Message_.keepalive_;
+    if (GetArena() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    Message_.keepalive_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::device::ServerKeepAlive& MgwMsg::_internal_keepalive() const {
+  return _internal_has_keepalive()
+      ? *Message_.keepalive_
+      : reinterpret_cast< ::device::ServerKeepAlive&>(::device::_ServerKeepAlive_default_instance_);
+}
+inline const ::device::ServerKeepAlive& MgwMsg::keepalive() const {
+  // @@protoc_insertion_point(field_get:mgw.MgwMsg.keepAlive)
+  return _internal_keepalive();
+}
+inline ::device::ServerKeepAlive* MgwMsg::unsafe_arena_release_keepalive() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:mgw.MgwMsg.keepAlive)
+  if (_internal_has_keepalive()) {
+    clear_has_Message();
+    ::device::ServerKeepAlive* temp = Message_.keepalive_;
+    Message_.keepalive_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void MgwMsg::unsafe_arena_set_allocated_keepalive(::device::ServerKeepAlive* keepalive) {
+  clear_Message();
+  if (keepalive) {
+    set_has_keepalive();
+    Message_.keepalive_ = keepalive;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:mgw.MgwMsg.keepAlive)
+}
+inline ::device::ServerKeepAlive* MgwMsg::_internal_mutable_keepalive() {
+  if (!_internal_has_keepalive()) {
+    clear_Message();
+    set_has_keepalive();
+    Message_.keepalive_ = CreateMaybeMessage< ::device::ServerKeepAlive >(GetArena());
+  }
+  return Message_.keepalive_;
+}
+inline ::device::ServerKeepAlive* MgwMsg::mutable_keepalive() {
+  // @@protoc_insertion_point(field_mutable:mgw.MgwMsg.keepAlive)
+  return _internal_mutable_keepalive();
+}
+
+// .u727.SetDevBlacklist setBlackList = 1000;
 inline bool MgwMsg::_internal_has_setblacklist() const {
   return Message_case() == kSetBlackList;
 }
@@ -1872,7 +1937,7 @@ inline ::u727::SetDevBlacklist* MgwMsg::mutable_setblacklist() {
   return _internal_mutable_setblacklist();
 }
 
-// .u727.SetLocalSvcPortReq setSvcPortReq = 35;
+// .u727.SetLocalSvcPortReq setSvcPortReq = 1001;
 inline bool MgwMsg::_internal_has_setsvcportreq() const {
   return Message_case() == kSetSvcPortReq;
 }
@@ -1937,7 +2002,7 @@ inline ::u727::SetLocalSvcPortReq* MgwMsg::mutable_setsvcportreq() {
   return _internal_mutable_setsvcportreq();
 }
 
-// .u727.SetLocalSvcPortReply setSvcPortReply = 36;
+// .u727.SetLocalSvcPortReply setSvcPortReply = 1002;
 inline bool MgwMsg::_internal_has_setsvcportreply() const {
   return Message_case() == kSetSvcPortReply;
 }
@@ -2002,7 +2067,7 @@ inline ::u727::SetLocalSvcPortReply* MgwMsg::mutable_setsvcportreply() {
   return _internal_mutable_setsvcportreply();
 }
 
-// .u727.GetLocalSvcPortReq getSvcPortReq = 37;
+// .u727.GetLocalSvcPortReq getSvcPortReq = 1003;
 inline bool MgwMsg::_internal_has_getsvcportreq() const {
   return Message_case() == kGetSvcPortReq;
 }
@@ -2067,7 +2132,7 @@ inline ::u727::GetLocalSvcPortReq* MgwMsg::mutable_getsvcportreq() {
   return _internal_mutable_getsvcportreq();
 }
 
-// .u727.GetLocalSvcPortReply getSvcPortReply = 38;
+// .u727.GetLocalSvcPortReply getSvcPortReply = 1004;
 inline bool MgwMsg::_internal_has_getsvcportreply() const {
   return Message_case() == kGetSvcPortReply;
 }
@@ -2132,7 +2197,7 @@ inline ::u727::GetLocalSvcPortReply* MgwMsg::mutable_getsvcportreply() {
   return _internal_mutable_getsvcportreply();
 }
 
-// .u727.StartStreamReq startStreamReq = 39;
+// .u727.StartStreamReq startStreamReq = 1005;
 inline bool MgwMsg::_internal_has_startstreamreq() const {
   return Message_case() == kStartStreamReq;
 }
@@ -2197,7 +2262,7 @@ inline ::u727::StartStreamReq* MgwMsg::mutable_startstreamreq() {
   return _internal_mutable_startstreamreq();
 }
 
-// .u727.StartStreamReply startStreamReply = 40;
+// .u727.StartStreamReply startStreamReply = 1006;
 inline bool MgwMsg::_internal_has_startstreamreply() const {
   return Message_case() == kStartStreamReply;
 }
@@ -2262,7 +2327,7 @@ inline ::u727::StartStreamReply* MgwMsg::mutable_startstreamreply() {
   return _internal_mutable_startstreamreply();
 }
 
-// .u727.StopStreamReq stopStream = 41;
+// .u727.StopStreamReq stopStream = 1007;
 inline bool MgwMsg::_internal_has_stopstream() const {
   return Message_case() == kStopStream;
 }
@@ -2327,7 +2392,7 @@ inline ::u727::StopStreamReq* MgwMsg::mutable_stopstream() {
   return _internal_mutable_stopstream();
 }
 
-// .u727.MgwDevOnlineNotify devOnline = 42;
+// .u727.MgwDevOnlineNotify devOnline = 1008;
 inline bool MgwMsg::_internal_has_devonline() const {
   return Message_case() == kDevOnline;
 }
@@ -2392,7 +2457,7 @@ inline ::u727::MgwDevOnlineNotify* MgwMsg::mutable_devonline() {
   return _internal_mutable_devonline();
 }
 
-// .u727.MgwDevOfflineNotify devOffline = 43;
+// .u727.MgwDevOfflineNotify devOffline = 1009;
 inline bool MgwMsg::_internal_has_devoffline() const {
   return Message_case() == kDevOffline;
 }
@@ -2457,7 +2522,7 @@ inline ::u727::MgwDevOfflineNotify* MgwMsg::mutable_devoffline() {
   return _internal_mutable_devoffline();
 }
 
-// .u727.StreamStatusNotify streamStatus = 44;
+// .u727.StreamStatusNotify streamStatus = 1010;
 inline bool MgwMsg::_internal_has_streamstatus() const {
   return Message_case() == kStreamStatus;
 }
@@ -2522,7 +2587,7 @@ inline ::u727::StreamStatusNotify* MgwMsg::mutable_streamstatus() {
   return _internal_mutable_streamstatus();
 }
 
-// .u727.DevStartStreamNotify devStartStreamNotify = 45;
+// .u727.DevStartStreamNotify devStartStreamNotify = 1011;
 inline bool MgwMsg::_internal_has_devstartstreamnotify() const {
   return Message_case() == kDevStartStreamNotify;
 }
@@ -2587,7 +2652,7 @@ inline ::u727::DevStartStreamNotify* MgwMsg::mutable_devstartstreamnotify() {
   return _internal_mutable_devstartstreamnotify();
 }
 
-// .u727.DevStopStreamNotify devStopStreamNotify = 46;
+// .u727.DevStopStreamNotify devStopStreamNotify = 1012;
 inline bool MgwMsg::_internal_has_devstopstreamnotify() const {
   return Message_case() == kDevStopStreamNotify;
 }
@@ -2652,7 +2717,7 @@ inline ::u727::DevStopStreamNotify* MgwMsg::mutable_devstopstreamnotify() {
   return _internal_mutable_devstopstreamnotify();
 }
 
-// .u727.KeepAlive u727keepAlive = 48;
+// .u727.KeepAlive u727keepAlive = 1013;
 inline bool MgwMsg::_internal_has_u727keepalive() const {
   return Message_case() == kU727KeepAlive;
 }
@@ -2717,7 +2782,7 @@ inline ::u727::KeepAlive* MgwMsg::mutable_u727keepalive() {
   return _internal_mutable_u727keepalive();
 }
 
-// .u727.QueryOnlineDevReq queryOnlineDevReq = 49;
+// .u727.QueryOnlineDevReq queryOnlineDevReq = 1014;
 inline bool MgwMsg::_internal_has_queryonlinedevreq() const {
   return Message_case() == kQueryOnlineDevReq;
 }
@@ -2782,7 +2847,7 @@ inline ::u727::QueryOnlineDevReq* MgwMsg::mutable_queryonlinedevreq() {
   return _internal_mutable_queryonlinedevreq();
 }
 
-// .u727.QueryOnlineDevReply queryOnlineDevReply = 50;
+// .u727.QueryOnlineDevReply queryOnlineDevReply = 1015;
 inline bool MgwMsg::_internal_has_queryonlinedevreply() const {
   return Message_case() == kQueryOnlineDevReply;
 }
@@ -2845,71 +2910,6 @@ inline ::u727::QueryOnlineDevReply* MgwMsg::_internal_mutable_queryonlinedevrepl
 inline ::u727::QueryOnlineDevReply* MgwMsg::mutable_queryonlinedevreply() {
   // @@protoc_insertion_point(field_mutable:mgw.MgwMsg.queryOnlineDevReply)
   return _internal_mutable_queryonlinedevreply();
-}
-
-// .device.ServerKeepAlive keepAlive = 47;
-inline bool MgwMsg::_internal_has_keepalive() const {
-  return Message_case() == kKeepAlive;
-}
-inline bool MgwMsg::has_keepalive() const {
-  return _internal_has_keepalive();
-}
-inline void MgwMsg::set_has_keepalive() {
-  _oneof_case_[0] = kKeepAlive;
-}
-inline ::device::ServerKeepAlive* MgwMsg::release_keepalive() {
-  // @@protoc_insertion_point(field_release:mgw.MgwMsg.keepAlive)
-  if (_internal_has_keepalive()) {
-    clear_has_Message();
-      ::device::ServerKeepAlive* temp = Message_.keepalive_;
-    if (GetArena() != nullptr) {
-      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
-    }
-    Message_.keepalive_ = nullptr;
-    return temp;
-  } else {
-    return nullptr;
-  }
-}
-inline const ::device::ServerKeepAlive& MgwMsg::_internal_keepalive() const {
-  return _internal_has_keepalive()
-      ? *Message_.keepalive_
-      : reinterpret_cast< ::device::ServerKeepAlive&>(::device::_ServerKeepAlive_default_instance_);
-}
-inline const ::device::ServerKeepAlive& MgwMsg::keepalive() const {
-  // @@protoc_insertion_point(field_get:mgw.MgwMsg.keepAlive)
-  return _internal_keepalive();
-}
-inline ::device::ServerKeepAlive* MgwMsg::unsafe_arena_release_keepalive() {
-  // @@protoc_insertion_point(field_unsafe_arena_release:mgw.MgwMsg.keepAlive)
-  if (_internal_has_keepalive()) {
-    clear_has_Message();
-    ::device::ServerKeepAlive* temp = Message_.keepalive_;
-    Message_.keepalive_ = nullptr;
-    return temp;
-  } else {
-    return nullptr;
-  }
-}
-inline void MgwMsg::unsafe_arena_set_allocated_keepalive(::device::ServerKeepAlive* keepalive) {
-  clear_Message();
-  if (keepalive) {
-    set_has_keepalive();
-    Message_.keepalive_ = keepalive;
-  }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:mgw.MgwMsg.keepAlive)
-}
-inline ::device::ServerKeepAlive* MgwMsg::_internal_mutable_keepalive() {
-  if (!_internal_has_keepalive()) {
-    clear_Message();
-    set_has_keepalive();
-    Message_.keepalive_ = CreateMaybeMessage< ::device::ServerKeepAlive >(GetArena());
-  }
-  return Message_.keepalive_;
-}
-inline ::device::ServerKeepAlive* MgwMsg::mutable_keepalive() {
-  // @@protoc_insertion_point(field_mutable:mgw.MgwMsg.keepAlive)
-  return _internal_mutable_keepalive();
 }
 
 inline bool MgwMsg::has_Message() const {

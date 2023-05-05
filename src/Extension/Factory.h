@@ -16,6 +16,7 @@
 #include "Extension/Track.h"
 #include "Rtsp/RtpCodec.h"
 #include "Rtmp/RtmpCodec.h"
+#include "Dmsp/DmspCodec.h"
 
 namespace mediakit{
 
@@ -78,6 +79,13 @@ public:
      * 根据codecId获取rtmp的codec描述
      */
     static AMFValue getAmfByCodecId(CodecId codecId);
+
+    /**
+     * 根据Track获取Dmsp的编解码器
+     * @param track 媒体描述对象
+     * @param is_encode 是否为编码器还是解码器
+    */
+    static DmspCodec::Ptr getDmspCodecByTrack(const Track::Ptr &track, bool is_encode);
 };
 
 }//namespace mediakit

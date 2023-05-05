@@ -110,6 +110,7 @@ const string kEnableRtsp = PROTOCOL_FIELD "enable_rtsp";
 const string kEnableRtmp = PROTOCOL_FIELD "enable_rtmp";
 const string kEnableTS = PROTOCOL_FIELD "enable_ts";
 const string kEnableFMP4 = PROTOCOL_FIELD "enable_fmp4";
+const string kEnableDmsp = PROTOCOL_FIELD "enable_dmsp";
 
 const string kMP4AsPlayer = PROTOCOL_FIELD "mp4_as_player";
 const string kMP4MaxSecond = PROTOCOL_FIELD "mp4_max_second";
@@ -122,6 +123,7 @@ const string kRtspDemand = PROTOCOL_FIELD "rtsp_demand";
 const string kRtmpDemand = PROTOCOL_FIELD "rtmp_demand";
 const string kTSDemand = PROTOCOL_FIELD "ts_demand";
 const string kFMP4Demand = PROTOCOL_FIELD "fmp4_demand";
+const string kDmspDemand = PROTOCOL_FIELD "dmsp_demand";
 
 static onceToken token([]() {
     mINI::Instance()[kModifyStamp] = 0;
@@ -135,6 +137,7 @@ static onceToken token([]() {
     mINI::Instance()[kEnableRtmp] = 1;
     mINI::Instance()[kEnableTS] = 1;
     mINI::Instance()[kEnableFMP4] = 1;
+    mINI::Instance()[kEnableDmsp] = 1;
 
     mINI::Instance()[kMP4AsPlayer] = 0;
     mINI::Instance()[kMP4MaxSecond] = 3600;
@@ -147,6 +150,7 @@ static onceToken token([]() {
     mINI::Instance()[kRtmpDemand] = 0;
     mINI::Instance()[kTSDemand] = 0;
     mINI::Instance()[kFMP4Demand] = 0;
+    mINI::Instance()[kDmspDemand] = 0;
 });
 } // !Protocol
 

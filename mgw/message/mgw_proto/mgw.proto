@@ -21,25 +21,24 @@ message MgwMsg {
         device.QuerySource         querySource    = 31;
         device.SetPullAttr         setPullAttr    = 32;
         device.PushStreamReq       pushStreamReq  = 33;
+        device.ServerKeepAlive     keepAlive      = 34;
 
         // messages for mgw <--> u727 communicate
-        u727.SetDevBlacklist setBlackList = 34;         // U727 -> MGW
-        u727.SetLocalSvcPortReq setSvcPortReq = 35;     // U727 -> MGW
-        u727.SetLocalSvcPortReply setSvcPortReply = 36; // MGW -> U727
-        u727.GetLocalSvcPortReq getSvcPortReq = 37;     // U727 -> MGW
-        u727.GetLocalSvcPortReply getSvcPortReply = 38; // MGW -> U727
-        u727.StartStreamReq startStreamReq = 39;        // U727 -> MGW
-        u727.StartStreamReply startStreamReply = 40;    // MGW -> U727
-        u727.StopStreamReq  stopStream = 41;            // U727 -> MGW
-        u727.MgwDevOnlineNotify devOnline = 42;         // MGW -> U727
-        u727.MgwDevOfflineNotify devOffline = 43;      // MGW -> U727
-        u727.StreamStatusNotify streamStatus = 44;     // MGW -> U727
-        u727.DevStartStreamNotify devStartStreamNotify = 45; // MGW -> U727
-        u727.DevStopStreamNotify devStopStreamNotify = 46;   // MGW -> U727
-        u727.KeepAlive u727keepAlive = 48; // U727 -> MGW -> U727
-        u727.QueryOnlineDevReq queryOnlineDevReq = 49; // U727 -> MGW
-        u727.QueryOnlineDevReply queryOnlineDevReply = 50; // MGW -> U727
-
-        device.ServerKeepAlive     keepAlive      = 47;
+        u727.SetDevBlacklist setBlackList = 1000;         // U727 -> MGW
+        u727.SetLocalSvcPortReq setSvcPortReq = 1001;     // U727 -> MGW
+        u727.SetLocalSvcPortReply setSvcPortReply = 1002; // MGW -> U727
+        u727.GetLocalSvcPortReq getSvcPortReq = 1003;     // U727 -> MGW
+        u727.GetLocalSvcPortReply getSvcPortReply = 1004; // MGW -> U727
+        u727.StartStreamReq startStreamReq = 1005;        // U727 -> MGW
+        u727.StartStreamReply startStreamReply = 1006;    // MGW -> U727
+        u727.StopStreamReq  stopStream = 1007;            // U727 -> MGW
+        u727.MgwDevOnlineNotify devOnline = 1008;         // MGW -> U727
+        u727.MgwDevOfflineNotify devOffline = 1009;      // MGW -> U727
+        u727.StreamStatusNotify streamStatus = 1010;     // MGW -> U727
+        u727.DevStartStreamNotify devStartStreamNotify = 1011; // MGW -> U727
+        u727.DevStopStreamNotify devStopStreamNotify = 1012;   // MGW -> U727
+        u727.KeepAlive u727keepAlive = 1013; // U727 -> MGW -> U727
+        u727.QueryOnlineDevReq queryOnlineDevReq = 1014; // U727 -> MGW
+        u727.QueryOnlineDevReply queryOnlineDevReply = 1015; // MGW -> U727
     }
 }

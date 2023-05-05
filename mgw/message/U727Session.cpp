@@ -18,9 +18,12 @@ U727Session::U727Session(const Socket::Ptr &sock)
 }
 
 U727Session::~U727Session() {
-    // NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastDeviceOnline);
-    // NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastPush);
-    // NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastStreamStatus);
+
+    if (_event_handle_init) {
+        NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastDeviceOnline);
+        NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastPush);
+        NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastStreamStatus);
+    }
 
     uint64_t duration = _ticker.createdTime() / 1000;
     WarnP(this) << "耗时(s): " << duration;
@@ -31,7 +34,7 @@ void U727Session::onError(const SockException &err) {
 }
 
 void U727Session::onManager() {
-    //超时没有收到设备的消息，关闭它。一般正常情况下，设备会间隔10秒发送一个状态同步请求
+    //超时没有收到消息，关闭它。一般正常情况下，设备会间隔10秒发送一个保活请求
     GET_CONFIG(uint32_t, cli_timeout, WsSrv::kKeepaliveSec);
     if (_ticker.elapsedTime() > cli_timeout * 1000) {
         shutdown(SockException(Err_timeout, "Recv data from device timeout"));
@@ -44,7 +47,7 @@ void U727Session::onRecv(const Buffer::Ptr &buffer) {
     onParseMessage(buffer->data(), buffer->size());
 }
 
-/// @brief Process mgw messages
+/// @brief Process u727 messages
 /// @param msg_pkt 
 void U727Session::onMessage(MessagePacket::Ptr msg_pkt) {
     //1.根据MessagePacket的负载，生成一个ProtoBufDec对象
@@ -60,11 +63,10 @@ void U727Session::onSendRawData(toolkit::Buffer::Ptr buffer) {
     send(move(buffer));
 }
 
-static void *g_tag = NULL;
 void U727Session::setEventHandle() {
     weak_ptr<U727Session> weak_self = dynamic_pointer_cast<U727Session>(shared_from_this());
     //设备上/下线通知
-    NoticeCenter::Instance().addListener(&g_tag, Broadcast::kBroadcastDeviceOnline, [weak_self](BroadcastDeviceOnlineArgs){
+    NoticeCenter::Instance().addListener(this, Broadcast::kBroadcastDeviceOnline, [weak_self](BroadcastDeviceOnlineArgs){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -85,7 +87,7 @@ void U727Session::setEventHandle() {
     });
 
     //设备开启/停止推流通知
-    NoticeCenter::Instance().addListener(&g_tag, Broadcast::kBroadcastPush, [weak_self](BroadcastPushArgs){
+    NoticeCenter::Instance().addListener(this, Broadcast::kBroadcastPush, [weak_self](BroadcastPushArgs){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -106,7 +108,7 @@ void U727Session::setEventHandle() {
     });
 
     //推流状态通知
-    NoticeCenter::Instance().addListener(&g_tag, Broadcast::kBroadcastStreamStatus, [weak_self](BroadcastStreamStatusArgs){
+    NoticeCenter::Instance().addListener(this, Broadcast::kBroadcastStreamStatus, [weak_self](BroadcastStreamStatusArgs){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -139,9 +141,10 @@ void U727Session::onProcessCmd(ProtoBufDec &dec) {
 
     });
 
-    static onceToken event_token([this](){
+    if (!_event_handle_init) {
         setEventHandle();
-    });
+        _event_handle_init = true;
+    }
 
     string method = dec.load();
     auto it = s_cmd_functions.find(method);
@@ -196,6 +199,62 @@ void U727Session::onMsg_getSrvPort(ProtoBufDec &dec) {
 
     ProtoBufEnc enc(msg);
     sendResponse(enc);
+}
+
+void U727Session::startStream(const string &stream_id, uint32_t delay_ms, StreamType src_type,
+            const string &src, StreamType dest_type, const string &dest) {
+
+    MediaInfo info;
+
+    Device::Ptr device = nullptr;
+    if (src_type == StreamType_Dev && !src.empty()) {
+        GET_CONFIG(string, tunnel_protocol, Mgw::kStreamTunnel);
+        device = DeviceHelper::findDevice(src, false);
+        if (!device) {
+            WarnL << "Do not exist device: " << src;
+            return;
+        }
+
+        string src_url = device->getPushaddr(0, tunnel_protocol);
+        if (info.getUrl().empty()) {
+            WarnL << "Can't parse this source url: " << src_url;
+        }
+        info.parse(src_url);
+    }
+
+    weak_ptr<U727Session> weak_self = dynamic_pointer_cast<U727Session>(shared_from_this());
+    auto push_task = [weak_self, stream_id, dest, device/*, on_published, on_shutdown*/](const MediaSource::Ptr &src) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+
+        //执行推流任务
+        if (src) {
+            // strong_self->_device_helper->addPusher(out_name, url, src, on_published, on_shutdown);
+            auto pusher = device->pusher(stream_id);
+            string url("dmsp://"); url.append(dest);
+
+            if (pusher->status() != ChannelStatus_Idle) {
+                //如果是tunnel pusher，不能手动中断去重推，否则会影响已存在的代理推流
+                if (stream_id == TUNNEL_PUSHER) {
+                    return;
+                }
+
+                WarnL << "Already exist, release the old and create a new: " << stream_id;
+                pusher->restart(url, nullptr, nullptr, src);
+            } else {
+                pusher->start(url, nullptr, nullptr, 15, src);
+            }
+
+        } else {
+            //过了一段时间还没有等到流，通知设备，推流失败
+            DebugL << "没有找到需要的源";
+            // on_published("Stream Not found.", ChannelStatus_Idle, ::time(NULL), -1);
+        }
+    };
+    //异步查找流，找到了就执行推流任务
+    MediaSource::findAsync(info, shared_from_this(), push_task);
 }
 
 static void parseStartStreamReq(const u727::StartStreamReq &req,
@@ -284,7 +343,9 @@ void U727Session::onMsg_startStreamReq(ProtoBufDec &dec) {
     const u727::StartStreamReq &req = dec.messge()->startstreamreq();
 
     parseStartStreamReq(req, src_type, src, dest_type, dest);
-    _u727->startStream(req.stream_id(), req.delay_ms(), src_type, src, dest_type, dest);
+
+    //开始domain socket 推流到u727
+    startStream(req.stream_id(), req.delay_ms(), src_type, src, dest_type, dest);
 
     ////////////////////////////////////////////////////
     MsgPtr msg = make_shared<mgw::MgwMsg>();
@@ -324,8 +385,6 @@ void U727Session::onMsg_queryOnlineDevReq(ProtoBufDec &dec) {
         info->set_version(config.version);
         info->set_vendor(config.vendor);
     });
-
-    DebugP(this) << "reply:" << msg->DebugString();
 
     ProtoBufEnc enc(msg);
     sendResponse(enc);

@@ -141,11 +141,20 @@ bool Device::availableAddr(const string &url) {
     return result;
 }
 
+void Device::pusher_for_each(std::function<void(PushHelper::Ptr)> func) {
+    for (auto pusher : _pusher_map)
+        func(pusher.second);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 recursive_mutex DeviceHelper::_mtx;
 unordered_map<string, Device::Ptr> DeviceHelper::_device_map;
 
-DeviceHelper::DeviceHelper(const string &sn) : _sn(sn) {}
+DeviceHelper::DeviceHelper(const string &sn, const EventPoller::Ptr &poller)
+    : _sn(sn) {
+    _poller = poller ? poller : EventPollerPool::Instance().getPoller();
+}
+
 DeviceHelper::~DeviceHelper() {}
 
 Device::Ptr &DeviceHelper::device() {
@@ -231,8 +240,7 @@ void DeviceHelper::stopTunnelPusher() {
 }
 
 void DeviceHelper::pusher_for_each(std::function<void(PushHelper::Ptr)> func) {
-    for (auto pusher : device()->_pusher_map)
-        func(pusher.second);
+    device()->pusher_for_each(func);
 }
 
 //返回当前有多少播放数量

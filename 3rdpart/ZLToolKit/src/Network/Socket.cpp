@@ -206,6 +206,73 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
     }
 }
 
+void Socket::connect(const std::string &svr_path, const onErrCB &con_cb_in, const std::string &cli_path, float timeout_sec) {
+    weak_ptr<Socket> weak_self = shared_from_this();
+    // 因为涉及到异步回调，所以在poller线程中执行确保线程安全
+    _poller->async([=] {
+        if (auto strong_self = weak_self.lock()) {
+            strong_self->connect_l(svr_path, con_cb_in, cli_path, timeout_sec);
+        }
+    });
+}
+
+void Socket::connect_l(const std::string &svr_path, const onErrCB &con_cb_in, const std::string &cli_path, float timeout_sec) {
+    // 重置当前socket
+    closeSock();
+
+    weak_ptr<Socket> weak_self = shared_from_this();
+    auto con_cb = [con_cb_in, weak_self](const SockException &err) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+        strong_self->_async_con_cb = nullptr;
+        strong_self->_con_timer = nullptr;
+        if (err) {
+            LOCK_GUARD(strong_self->_mtx_sock_fd);
+            strong_self->_sock_fd = nullptr;
+        }
+        con_cb_in(err);
+    };
+
+    auto async_con_cb = std::make_shared<function<void(int)>>([weak_self, con_cb](int sock) {
+        auto strong_self = weak_self.lock();
+        if (sock == -1 || !strong_self) {
+            if (!strong_self) {
+                CLOSE_SOCK(sock);
+            } else {
+                con_cb(SockException(Err_dns, get_uv_errmsg(true)));
+            }
+            return;
+        }
+
+        strong_self->setPeerSock(sock, SockNum::Sock_Domain);
+        // 监听该socket是否可写，可写表明已经连接服务器成功
+        int result = strong_self->_poller->addEvent(sock, EventPoller::Event_Write, [weak_self, sock, con_cb](int event) {
+            if (auto strong_self = weak_self.lock()) {
+                // socket可写事件，说明已经连接服务器成功
+                strong_self->onConnected(sock, con_cb);
+            }
+        });
+
+        if (result == -1) {
+            con_cb(SockException(Err_other, "add event to poller failed when start connect"));
+        }
+    });
+
+    // 连接超时定时器
+    _con_timer = std::make_shared<Timer>(timeout_sec,[weak_self, con_cb]() {
+        con_cb(SockException(Err_timeout, uv_strerror(UV_ETIMEDOUT)));
+        return false;
+    }, _poller);
+
+    //客户端绑定的路径不存在的时候才可以创建Unix域套接字
+    if (access(cli_path.data(), F_OK)) {
+        (*async_con_cb)(SockUtil::connect(svr_path, cli_path, true));
+        _svr_path = svr_path;
+    }
+}
+
 void Socket::onConnected(int sock, const onErrCB &cb) {
     auto err = getSockErr(sock, false);
     if (err) {
@@ -509,7 +576,8 @@ bool Socket::fromSock(int fd, SockNum::SockType type) {
 bool Socket::fromSock_l(int fd, SockNum::SockType type) {
     switch (type) {
         case SockNum::Sock_TCP:
-        case SockNum::Sock_UDP: {
+        case SockNum::Sock_UDP:
+        case SockNum::Sock_Domain: {
             if (!attachEvent(fd, type)) {
                 return false;
             }
@@ -640,6 +708,10 @@ uint16_t Socket::get_peer_port() {
 string Socket::getIdentifier() const {
     static string class_name = "Socket: ";
     return class_name + to_string(reinterpret_cast<uint64_t>(this));
+}
+
+string Socket::getBindPath() const {
+    return _svr_path;
 }
 
 bool Socket::flushData(int sock, SockNum::SockType type, bool poller_thread) {
@@ -961,6 +1033,10 @@ string SocketHelper::get_peer_ip() {
 
 uint16_t SocketHelper::get_peer_port() {
     return _sock ? _sock->get_peer_port() : 0;
+}
+
+string SocketHelper::getBindPath() const {
+    return _sock ? _sock->getBindPath() : "";
 }
 
 bool SocketHelper::isSocketBusy() const {

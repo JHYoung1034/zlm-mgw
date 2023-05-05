@@ -83,6 +83,7 @@ void PushHelper::start(const string &url, onPublished on_pubished, onShutdown on
     });
 
     _pusher->setOnShutdown(do_retry);
+    //调用publish的时候，会根据url，判断是何种协议，在调用createPusher创建指定协议的pusher
     _pusher->publish(url);
 }
 

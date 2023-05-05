@@ -25,6 +25,8 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <unistd.h>
+#include <sys/un.h>
 #endif // defined(_WIN32)
 
 #include <cstring>
@@ -64,6 +66,14 @@ public:
      * @return -1代表失败，其他为socket fd号
      */
     static int connect(const char *host, uint16_t port, bool async = true, const char *local_ip = "::", uint16_t local_port = 0);
+
+    /**
+     * 创建domain socket域套接字客户端并连接服务器
+     * @param cli_path 客户端路径
+     * @param svr_path 服务器路径
+     * @param async 是否异步连接
+    */
+    static int connect(const std::string &svr_path, const std::string &cli_path = "", bool async = true);
 
     /**
      * 创建tcp监听套接字

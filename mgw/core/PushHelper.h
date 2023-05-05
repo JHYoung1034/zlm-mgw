@@ -8,7 +8,7 @@
 namespace mediakit {
 
 /**
-* 需要的参数：推流地址(带用户名&密码)，通道名字(O[L/R][chn]), 绑定网卡名&mtu, 推流成功&失败回调，内部关闭回调, 查找源回调
+* 需要的参数：推流地址(带用户名&密码 待实现)，通道名字(O[L/R][chn]), 绑定网卡名&mtu, 推流成功&失败回调，内部关闭回调
 */
 class PushHelper : public std::enable_shared_from_this<PushHelper> {
 public:

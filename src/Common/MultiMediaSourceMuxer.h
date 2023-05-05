@@ -22,6 +22,7 @@
 #include "Rtmp/RtmpMediaSourceMuxer.h"
 #include "TS/TSMediaSourceMuxer.h"
 #include "FMP4/FMP4MediaSourceMuxer.h"
+#include "Dmsp/DmspMediaSourceMuxer.h"
 
 namespace mediakit {
 
@@ -169,6 +170,8 @@ private:
 #if defined(ENABLE_RTPPROXY)
     std::unordered_map<std::string, RingType::RingReader::Ptr> _rtp_sender;
 #endif //ENABLE_RTPPROXY
+
+    DmspMediaSourceMuxer::Ptr _dmsp;
 
 #if defined(ENABLE_MP4)
     FMP4MediaSourceMuxer::Ptr _fmp4;

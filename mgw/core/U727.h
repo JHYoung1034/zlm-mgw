@@ -14,7 +14,6 @@
 
 namespace mediakit {
 
-//每个机器上只有一个u727
 class U727 : public std::enable_shared_from_this<U727> {
 public:
     using Ptr = std::shared_ptr<U727>;

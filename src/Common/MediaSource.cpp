@@ -64,12 +64,14 @@ ProtocolOption::ProtocolOption() {
     GET_CONFIG(bool, s_enable_rtmp, Protocol::kEnableRtmp);
     GET_CONFIG(bool, s_enable_ts, Protocol::kEnableTS);
     GET_CONFIG(bool, s_enable_fmp4, Protocol::kEnableFMP4);
+    GET_CONFIG(bool, s_enable_dmsp, Protocol::kEnableDmsp);
 
     GET_CONFIG(bool, s_hls_demand, Protocol::kHlsDemand);
     GET_CONFIG(bool, s_rtsp_demand, Protocol::kRtspDemand);
     GET_CONFIG(bool, s_rtmp_demand, Protocol::kRtmpDemand);
     GET_CONFIG(bool, s_ts_demand, Protocol::kTSDemand);
     GET_CONFIG(bool, s_fmp4_demand, Protocol::kFMP4Demand);
+    GET_CONFIG(bool, s_dmsp_demand, Protocol::kDmspDemand);
 
     GET_CONFIG(bool, s_mp4_as_player, Protocol::kMP4AsPlayer);
     GET_CONFIG(uint32_t, s_mp4_max_second, Protocol::kMP4MaxSecond);
@@ -88,12 +90,14 @@ ProtocolOption::ProtocolOption() {
     enable_rtmp = s_enable_rtmp;
     enable_ts = s_enable_ts;
     enable_fmp4 = s_enable_fmp4;
+    enable_dmsp = s_enable_dmsp;
 
     hls_demand = s_hls_demand;
     rtsp_demand = s_rtsp_demand;
     rtmp_demand = s_rtmp_demand;
     ts_demand = s_ts_demand;
     fmp4_demand = s_fmp4_demand;
+    dmsp_demand = s_dmsp_demand;
 
     mp4_as_player = s_mp4_as_player;
     mp4_max_second = s_mp4_max_second;

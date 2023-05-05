@@ -196,5 +196,65 @@ void MessageClient::omMsg_stopTunnelPush(ProtoBufDec &dec) {
 /// @brief ////////////////////////////////////////////////
 /// @param dec 
 void MessageClient::onMsg_ServerSessionRsp(ProtoBufDec &dec) {
+    DebugP(this) << "onMsg_ServerSessionRsp: " << dec.toString();
 
+    //如果建立会话成功，那么需要开启定时器，定时发送状态同步
+    const device::ServerSessionRsp &rsp = dec.messge()->sersessionrsp();
+    if (rsp.sessionresult() == ErrorCode::Success && !_ka_timer) {
+        weak_ptr<MessageClient> weak_self = dynamic_pointer_cast<MessageClient>(shared_from_this());
+
+        _ka_timer = make_shared<Timer>(10, [weak_self]()->bool {
+            ////////////////// set protobuf //////////////////
+            static uint32_t snd_cnt = 0;
+            int currTs = chrono::duration_cast<chrono::seconds>\
+                        (chrono::system_clock::now().time_since_epoch()).count();
+
+            DeviceHelper::device_for_each([weak_self, currTs](Device::Ptr device) {
+                auto strong_self = weak_self.lock();
+                if (!strong_self) {
+                    return false;
+                }
+
+                MsgPtr msg = make_shared<mgw::MgwMsg>();
+                device::SyncStatusRsp *rsp = msg->mutable_syncrsp();
+                auto cfg = device->getConfig();
+
+                rsp->set_devsn(cfg.sn);
+                rsp->set_currts(currTs);
+                rsp->set_sndcnt(++snd_cnt);
+                rsp->set_chncap(cfg.max_pushers);
+                rsp->set_maxbitrate(cfg.max_bitrate);
+                rsp->set_maxbitrate4k(cfg.max_4kbitrate);
+                rsp->set_players(device->players(""));
+                //TODO:获取设备总共播放服务流量，待实现
+                rsp->set_playtotalbytes(0);
+
+                device->pusher_for_each([rsp](PushHelper::Ptr pusher) {
+                    //在这里打包每个推流的信息
+                    device::StreamInfo *pb_info = rsp->add_streaminfos();
+                    StreamInfo ps_info = pusher->getInfo();
+                    pb_info->set_channel(ps_info.channel);
+                    pb_info->set_starttime(ps_info.startTime);
+                    pb_info->set_currenttime(::time(NULL));
+                    pb_info->set_stoptime(ps_info.stopTime);
+                    pb_info->set_totalbytessnd(ps_info.totalByteSnd);
+                    pb_info->set_reconnectcnt(ps_info.total_retry);
+                    pb_info->set_status((int)ps_info.status);
+                    common::StreamAddress *addr = pb_info->mutable_streamaddr();
+                    if (ps_info.url.substr(0, 7) == "rtmp://") {
+                        common::RTMPStreamAddress *rtmp = addr->mutable_rtmp();
+                        rtmp->set_uri(ps_info.url);
+                    } else if (ps_info.url.substr(0, 6) == "srt://") {
+                        common::SRTStreamAddress *srt = addr->mutable_srt();
+                        srt->set_simaddr(ps_info.url);
+                    }
+                });
+
+                ProtoBufEnc enc(msg);
+                strong_self->sendResponse(enc);
+            });
+            //返回true，一直重复发送状态同步消息
+            return true;
+        }, getPoller());
+    }
 }

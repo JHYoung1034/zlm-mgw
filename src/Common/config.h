@@ -222,6 +222,8 @@ extern const std::string kEnableRtmp;
 extern const std::string kEnableTS;
 //是否开启转换为http-fmp4/ws-fmp4
 extern const std::string kEnableFMP4;
+//是否开启转换为Dmsp
+extern const std::string kEnableDmsp;
 
 //是否将mp4录制当做观看者
 extern const std::string kMP4AsPlayer;
@@ -239,6 +241,7 @@ extern const std::string kRtspDemand;
 extern const std::string kRtmpDemand;
 extern const std::string kTSDemand;
 extern const std::string kFMP4Demand;
+extern const std::string kDmspDemand;
 } // !Protocol
 
 ////////////HTTP配置///////////
