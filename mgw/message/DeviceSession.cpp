@@ -162,9 +162,6 @@ void DeviceSession::onMsg_sessionReq(ProtoBufDec &dec) {
                 max_4kbitrate, max_pushers, max_players);
     device->loadConfig(cfg);
 
-    //设备会话注册上了，给u727发送设备上线通知
-    NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastDeviceOnline, true, cfg);
-
     ////////////////// set response protobuf //////////////////
     MsgPtr msg = make_shared<mgw::MgwMsg>();
     device::SessionRsp *rsp = msg->mutable_sessionrsp();
@@ -183,10 +180,14 @@ void DeviceSession::onMsg_sessionReq(ProtoBufDec &dec) {
         rtmp->set_uri(url);
     }
     rsp->set_pulladdr(device->getPlayaddr(0, tunnel_protocol));
-    ///////////////////////////////////////////////////
 
     ProtoBufEnc enc(msg);
     sendResponse(enc);
+    ///////////////////////////////////////////////////
+
+    //设备会话注册上了，给u727发送设备上线通知
+    cfg.play_addr = device->getPlayaddr(0, "rtsp");
+    NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastDeviceOnline, true, cfg);
 }
 
 void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {

@@ -214,6 +214,7 @@ const string kHandshakeSecond = RTSP_FIELD "handshakeSecond";
 const string kKeepAliveSecond = RTSP_FIELD "keepAliveSecond";
 const string kDirectProxy = RTSP_FIELD "directProxy";
 const string kLowLatency = RTSP_FIELD"lowLatency";
+const string kPort = RTSP_FIELD "port";
 
 static onceToken token([]() {
     // 默认Md5方式认证
@@ -222,6 +223,7 @@ static onceToken token([]() {
     mINI::Instance()[kKeepAliveSecond] = 15;
     mINI::Instance()[kDirectProxy] = 1;
     mINI::Instance()[kLowLatency] = 0;
+    mINI::Instance()[kPort] = 554;
 });
 } // namespace Rtsp
 
@@ -404,7 +406,7 @@ const string kStreamTunnel          = MGW_FIELD "streamTunnel";
 const string kUrlValidityPeriodSec  = MGW_FIELD "urlValidityPeriodSec";
 const string kSecretKey             = MGW_FIELD "secretKey";
 const string kOutHostIP             = MGW_FIELD "outHostIP";
-const string kMaxRetryPush          = MGW_FIELD "maxRetryPush";
+const string kMaxRetry              = MGW_FIELD "maxRetry";
 
 static onceToken token([]() {
     mINI::Instance()[kMaxPushers]         = 4;
@@ -415,7 +417,7 @@ static onceToken token([]() {
     mINI::Instance()[kMaxPlayers]           = 10;
     mINI::Instance()[kStreamTunnel]         = "rtmp";
     mINI::Instance()[kUrlValidityPeriodSec] = 31536000;
-    mINI::Instance()[kMaxRetryPush]         = 15;
+    mINI::Instance()[kMaxRetry]             = 15;
     mINI::Instance()[kSecretKey]            = "c97f2f786e2eb0e56067732ef67b333366d4bf28";
 });
 }

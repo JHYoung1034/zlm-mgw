@@ -55,4 +55,9 @@ void MediaPlayer::setOnCreateSocket(Socket::onCreateSocket cb){
     _on_create_socket = std::move(cb);
 }
 
+void MediaPlayer::setNetif(const std::string &netif, uint16_t mss) {
+    _netif = netif;
+    _mss = mss;
+}
+
 } /* namespace mediakit */

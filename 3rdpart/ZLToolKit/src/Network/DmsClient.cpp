@@ -44,6 +44,8 @@ void DmsClient::startConnect(const std::string &svr_path, const std::string &cli
         return true;
     }, getPoller());
 
+    setSock(createSocket());
+
     auto sock_ptr = getSock().get();
     sock_ptr->setOnErr([weak_self, sock_ptr](const SockException &ex) {
         auto strong_self = weak_self.lock();

@@ -4,11 +4,13 @@
 #define TUNNEL_PUSHER "TunnelPuhser"
 #define DEFAULT_LOCAL_INPUT "local://localhost/device/"
 
+#define SHORT_SN_LEN    8
+
 #include <inttypes.h>
 #include <string>
 
 typedef int ChannelId;
-typedef int Time_t;
+typedef uint32_t Time_t;
 
 enum EncoderType : uint8_t {
     EncoderType_None = 0,
@@ -46,7 +48,7 @@ enum StreamType {
     StreamType_Sock,        // U727内部传输的 domain socket
     StreamType_Dev,         // 从设备拉流
     StreamType_Play,        // 从源地址拉流
-    StreamType_Publish,     // 本地监听等待推流
+    StreamType_Publish,     // 本地监听等待推流, 等待u727推流到来后 转推/录像/返回拉流地址
     StreamType_File,        // 从本地文件输入
 };
 

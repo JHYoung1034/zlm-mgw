@@ -115,6 +115,11 @@ public:
      */
     virtual void setOnResume(const std::function<void()> &cb) = 0;
 
+    /**
+     * 设置绑定到指定的网卡或者IP，同时设置最大的网络包大小
+    */
+   virtual void setNetif(const std::string &netif, uint16_t mss) = 0;
+
 protected:
     virtual void onResume() = 0;
     virtual void onShutdown(const toolkit::SockException &ex) = 0;

@@ -1,5 +1,6 @@
 #include "EventProcess.h"
 #include "UcastDevice.h"
+#include "U727.h"
 #include "Util/NoticeCenter.h"
 #include "Util/onceToken.h"
 #include "Common/config.h"
@@ -27,17 +28,19 @@ string EventProcess::getSnByStreamId(const string &streamid) {
     return streamid.substr(0, pos);
 }
 
-string EventProcess::getFullUrl(const string &schame, const string &url, uint16_t port) {
-    if (schame.empty() || url.empty()) {
+string EventProcess::getFullUrl(const string &schema, const string &url, uint16_t port) {
+    if (schema.empty() || url.empty()) {
         return string();
     }
 
     if (!port) {
-        if (0 == strncasecmp(schame.data(), "rtmp", 4)) {
-            port = 1935;
-        } else if (0 == strncasecmp(schame.data(), "srt", 3)) {
+        if (0 == strncasecmp(schema.data(), "rtmp", 4)) {
+            port = mINI::Instance()[Rtmp::kPort];
+        } else if (0 == strncasecmp(schema.data(), "srt", 3)) {
             GET_CONFIG(uint16_t, srt_port, SrtSrv::kPort);
             port = srt_port;
+        } else if (0 == strncasecmp(schema.data(), "rtsp", 4)) {
+            port = mINI::Instance()[Rtsp::kPort];
         }
     }
 
@@ -54,13 +57,18 @@ void EventProcess::run() {
             string err("");
             sn = getSnByStreamId(args._streamid);
             auto device = DeviceHelper::findDevice(sn);
-            if (!device) {
-                err = string("Device not found: ").append(sn);
+            auto u727 = U727::getU727().lock();
+            bool access = false;
+            if (device) {
+                //url需要加上端口号，校验完整的url
+                access = device->availableAddr(getFullUrl(args._schema, args._full_url, args._port));
+            } else if (u727) {
+                access = u727->availableRtspAddr(getFullUrl(args._schema, args._full_url, args._port));
+            } else {
+                err = string("illegal stream: ").append(args._streamid);
                 return err;
             }
-
-            bool access = device->availableAddr(getFullUrl(args._schema, args._full_url, args._port));
-            err = access ? "" : "Access failed.";
+            err = access ? "" : "Access denied.";
             return err;
         };
 
@@ -69,8 +77,8 @@ void EventProcess::run() {
             string sn;
             string err = auth_token(true, args, sn);
             ProtocolOption option;
-            if (err.empty()) {
-                //如果错误码是空的，说明鉴权成功，一定存在设备
+            if (err.empty() && !sn.empty()) {
+                //如果错误码是空的，说明鉴权成功
                 auto device = DeviceHelper::findDevice(sn);
                 device->setAlive(false, true);
                 option = device->getEnableOption();
@@ -104,11 +112,12 @@ void EventProcess::run() {
         NoticeCenter::Instance().addListener(this,Broadcast::kBroadcastNotFoundStream,[this](BroadcastNotFoundStreamArgs){
             string sn = getSnByStreamId(args._streamid);
             auto device = DeviceHelper::findDevice(sn);
-            if (!device) {
-                WarnL << "Not found the device: " << sn << ", url:" << args._full_url;
-                return;
+            if (device) {
+                device->doOnNotFoundStream(args._full_url);
+            } else {
+                //尝试去拉流或者从文件输入，但是需要知道是设备请求的还是u727请求的，因为拉流器实例需要他们各自管理
+                // WarnL << "Not found the device: " << sn << ", url:" << args._full_url;
             }
-            device->doOnNotFoundStream(args._full_url);
         });
 
         //观看人数变化时通知，后台显示当前多少人在观看
@@ -116,11 +125,9 @@ void EventProcess::run() {
         NoticeCenter::Instance().addListener(this,Broadcast::kBroadcastPlayersChanged,[this](BroadcastPlayersChangedArgs){
             string sn = getSnByStreamId(sender.getId());
             auto device = DeviceHelper::findDevice(sn);
-            if (!device) {
-                WarnL << "Not found the device: " << sn;
-                return;
+            if (device) {
+                device->doOnPlayersChange(sender.totalReaderCount());
             }
-            device->doOnPlayersChange(sender.totalReaderCount());
         });
 
         //无人消费这个流的时候，通知设备
@@ -128,11 +135,9 @@ void EventProcess::run() {
         NoticeCenter::Instance().addListener(this,Broadcast::kBroadcastStreamNoneReader,[this](BroadcastStreamNoneReaderArgs) {
             string sn = getSnByStreamId(sender.getId());
             auto device = DeviceHelper::findDevice(sn);
-            if (!device) {
-                WarnL << "Not found the device: " << sn;
-                return;
+            if (device) {
+                device->doOnNoReader();
             }
-            device->doOnNoReader();
         });
     });
 }

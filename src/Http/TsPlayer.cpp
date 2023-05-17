@@ -21,6 +21,13 @@ void TsPlayer::play(const string &url) {
     TraceL << "play http-ts: " << url;
     _play_result = false;
     _benchmark_mode = (*this)[Client::kBenchmarkMode].as<int>();
+    if (_netif.empty()) {
+        if (!(*this)[Client::kNetAdapter].empty()) {
+            setNetAdapter((*this)[Client::kNetAdapter]);
+        }
+    } else {
+        setNetAdapter(_netif);
+    }
     setHeaderTimeout((*this)[Client::kTimeoutMS].as<int>());
     setBodyTimeout((*this)[Client::kMediaTimeoutMS].as<int>());
     setMethod("GET");
@@ -49,6 +56,11 @@ void TsPlayer::onResponseBody(const char *buf, size_t size) {
     if (!_benchmark_mode) {
         HttpTSPlayer::onResponseBody(buf, size);
     }
+}
+
+void TsPlayer::setNetif(const std::string &netif, uint16_t mss) {
+    _netif = netif;
+    _mss = mss;
 }
 
 } // namespace mediakit

@@ -42,7 +42,8 @@ bool TcpClient::alive() const {
     return sock && sock->rawFD() >= 0;
 }
 
-void TcpClient::setNetAdapter(const string &local_ip) {
+void TcpClient::setNetAdapter(const string &local_ip, uint16_t mss) {
+    _mss = mss;
     _net_adapter = local_ip;
 }
 

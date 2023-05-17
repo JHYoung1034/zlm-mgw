@@ -228,7 +228,8 @@ void MessageCodec::sendSvrSession(uint64_t uptime, uint32_t interval, const stri
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //发送消息到u727
 void MessageCodec::sendDeviceOnline(const string &sn,
-        const string &type,const string &ver, const string &ven) {
+                const string &type,const string &ver,
+                const string &ven, const string play_url) {
     MsgPtr msg = make_shared<mgw::MgwMsg>();
     u727::MgwDevOnlineNotify *notify = msg->mutable_devonline();
     u727::MgwDevInfo *info = notify->mutable_device();
@@ -236,6 +237,7 @@ void MessageCodec::sendDeviceOnline(const string &sn,
     info->set_type(type);
     info->set_version(ver);
     info->set_vendor(ven);
+    info->set_stream_url(play_url);
 
     DebugL << "online:" << msg->DebugString();
 

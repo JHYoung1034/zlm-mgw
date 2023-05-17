@@ -53,7 +53,7 @@ private:
 private:
     uint64_t _total_bytes = 0;
     toolkit::Timer::Ptr _ka_timer = nullptr;
-    //设备实例，使用弱引用，防止和循环引用
+    //设备实例，使用弱引用，防止循环引用
     std::weak_ptr<DeviceHelper> _device_helper;
 };
 

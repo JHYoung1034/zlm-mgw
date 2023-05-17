@@ -40,5 +40,7 @@ message MgwMsg {
         u727.KeepAlive u727keepAlive = 1013; // U727 -> MGW -> U727
         u727.QueryOnlineDevReq queryOnlineDevReq = 1014; // U727 -> MGW
         u727.QueryOnlineDevReply queryOnlineDevReply = 1015; // MGW -> U727
+        u727.QueryStreamStatusReq queryStreamReq = 1016; // U727 -> MGW
+        u727.QueryStreamStatusReply queryStreamReply = 1017; // MGW -> U727
     }
 }

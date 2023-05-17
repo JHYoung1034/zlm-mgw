@@ -31,6 +31,8 @@ public:
      */
     void teardown() override;
 
+    void setNetif(const std::string &netif, uint16_t mss) override;
+
 protected:
     void onResponseBody(const char *buf, size_t size) override;
     void onResponseCompleted(const toolkit::SockException &ex) override;
@@ -38,6 +40,9 @@ protected:
 private:
     bool _play_result = true;
     bool _benchmark_mode = false;
+
+    uint16_t _mss;
+    std::string _netif;
 };
 
 } // namespace mediakit

@@ -29,8 +29,12 @@ void HlsPlayer::fetchIndexFile() {
     if (waitResponse()) {
         return;
     }
-    if (!(*this)[Client::kNetAdapter].empty()) {
-        setNetAdapter((*this)[Client::kNetAdapter]);
+    if (_netif.empty()) {
+        if (!(*this)[Client::kNetAdapter].empty()) {
+            setNetAdapter((*this)[Client::kNetAdapter]);
+        }
+    } else {
+        setNetAdapter(_netif);
     }
     setCompleteTimeout((*this)[Client::kTimeoutMS].as<int>());
     setMethod("GET");
@@ -267,6 +271,11 @@ void HlsPlayer::playDelay() {
         }
         return false;
     }, getPoller()));
+}
+
+void HlsPlayer::setNetif(const std::string &netif, uint16_t mss) {
+    _netif = netif;
+    _mss = mss;
 }
 
 //////////////////////////////////////////////////////////////////////////

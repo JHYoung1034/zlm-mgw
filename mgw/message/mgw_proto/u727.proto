@@ -7,6 +7,7 @@ message MgwDevInfo {
     string type = 2;
     string version = 3;
     string vendor = 4;
+    string stream_url = 5;
 }
 
 // 设置设备黑名单
@@ -18,16 +19,14 @@ message SetDevBlacklist {
 message StartStreamReq {
     string stream_id = 1;
     oneof src {
-        string src_sock = 11; // U727内部传输的domain socket(拉模式)
         string src_dev_sn = 12;  // 从设备拉流
-        common.StreamAddress src_pull_addr = 13; // 从源地址拉流
-        common.StreamAddress src_push_addr = 14; // 本地监听等待推流
+        string src_pull_addr = 13; // 从源地址拉流
+        bool need_push = 14; // 本地监听等待推流
         string src_file_path = 15;
     }
     oneof dest {
-        string dest_sock = 21; // U727内部传输的domain socket(推模式)
-        common.StreamAddress dest_push_addr = 23; // 向目的地址推流
-        common.StreamAddress dest_pull_addr = 24; // 本地监听等待拉流
+        string dest_push_addr = 23; // 向目的地址推流
+        bool need_pull = 24; // 本地监听等待拉流
         string dest_file_path = 25;
     }
     uint32 delay_ms = 31; // 多种规格延迟输出(500ms,1s,2s,3s,…最长30min)
@@ -37,6 +36,8 @@ message StartStreamReply {
     string stream_id = 1;
     int32  result = 2;
     string descrip = 3;
+    string push_url = 4;
+    string pull_url = 5;
 }
 
 // 停止流
@@ -80,6 +81,7 @@ message StreamStatusNotify {
     int32 status = 3;     //0-Stopped, 1-Streaming, 2-Reconnecting
     int32 startTime = 4;
     int32 lastErrCode = 5;
+    int32 stream_type = 6; //1-input, 2-output
 }
 
 // 通知设备启动推流
@@ -105,4 +107,11 @@ message QueryOnlineDevReq {
 }
 message QueryOnlineDevReply {
     repeated MgwDevInfo devices = 20;
+}
+
+// 查询当前所有流状态
+message QueryStreamStatusReq {
+}
+message QueryStreamStatusReply {
+    repeated StreamStatusNotify streams_status = 20;
 }

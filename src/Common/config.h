@@ -291,6 +291,8 @@ extern const std::string kDirectProxy;
 
 // rtsp 转发是否使用低延迟模式，当开启时，不会缓存rtp包，来提高并发，可以降低一帧的延迟
 extern const std::string kLowLatency;
+//端口号
+extern const std::string kPort;
 } // namespace Rtsp
 
 ////////////RTMP服务器配置///////////
@@ -437,7 +439,7 @@ extern const std::string kStreamTunnel;
 extern const std::string kUrlValidityPeriodSec;
 extern const std::string kSecretKey;
 extern const std::string kOutHostIP;
-extern const std::string kMaxRetryPush;
+extern const std::string kMaxRetry;
 } //namespace Mgw
 } // namespace mediakit
 

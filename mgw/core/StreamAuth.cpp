@@ -13,7 +13,7 @@ using namespace std;
 
 namespace mediakit {
 
-std::string StreamAuth::md5Sum(const std::string &data) {
+string StreamAuth::md5Sum(const string &data) {
 
     // cout << "md5 data:" << data << endl;
     string ret;
@@ -41,8 +41,8 @@ err:
 
 //rtmp://DomainName/AppName/StreamName?auth_key=method-timestamp-rand-uid-md5hash
 //rtmp://192.168.0.15:1935/live/HDMN2DEV_C0?auth_key=push-1669813114-0-0-602c8645457f82b72fce392da3814038
-std::string StreamAuth::getRtmpAddr(const std::string &host,
-            const std::string &dev, const std::string &method,
+string StreamAuth::getRtmpAddr(const string &host,
+            const string &dev, const string &method,
             int time, uint32_t chn, uint16_t port) {
 
     ostringstream oss;
@@ -61,17 +61,17 @@ std::string StreamAuth::getRtmpAddr(const std::string &host,
     return ret;
 }
 
-std::string StreamAuth::getRtmpPushAddr(const std::string &host, const std::string &dev,
+string StreamAuth::getRtmpPushAddr(const string &host, const string &dev,
                         int time, uint32_t chn, uint16_t port) {
     _push_time = time;
     return getRtmpAddr(host, dev, "push", time, chn, port);
 }
 
 /** 如果time=0, 则使用推流地址设置的time，如果time>0, 应该判断不能大于推流地址的time */
-std::string StreamAuth::getRtmpPullAddr(const std::string &host, const std::string &dev,
+string StreamAuth::getRtmpPullAddr(const string &host, const string &dev,
                         int time, uint32_t chn, uint16_t port) {
     if (!_push_time) {
-        return std::string();
+        return string();
     }
     if (!time || time > _push_time)
         time = _push_time;
@@ -79,7 +79,7 @@ std::string StreamAuth::getRtmpPullAddr(const std::string &host, const std::stri
     return getRtmpAddr(host, dev, "pull", time, chn, port);
 }
 
-bool StreamAuth::availableRtmpAddr(const std::string &url) {
+bool StreamAuth::availableRtmpAddr(const string &url) {
     //1.解析出时间，如果小于当前时间，直接返回错误，如果大于当前时间，构造出sstring
     //sstring = "rtmp://host:port/live/dev_Cchn?auth_key=method-timestamp-rand-uid-privateKey"
     //1.1 取出Timestamp 和 privateKey
@@ -113,8 +113,8 @@ bool StreamAuth::availableRtmpAddr(const std::string &url) {
 
 //srt://[host]:[port]?streamid=#!::h=[host],r=/live/[dev]_C[chn],m=publish/request,auth_key=[timestamp]-[rand]-[uid]-[privateKey]
 //srt://192.168.0.15:60003?streamid=#!::h=192.168.0.15,r=/live/HDMN2DEV_C0,m=publish,auth_key=1669813114-0-0-602c8645457f82b72fce392da3814038
-std::string StreamAuth::getSrtAddr(const std::string &host,
-                const std::string &dev, const std::string &method,
+string StreamAuth::getSrtAddr(const string &host,
+                const string &dev, const string &method,
                 int time, uint32_t chn, uint16_t port) {
     ostringstream oss;
     oss << "srt://" << host << ":" << port;
@@ -127,16 +127,16 @@ std::string StreamAuth::getSrtAddr(const std::string &host,
     return ret;
 }
 
-std::string StreamAuth::getSrtPushAddr(const std::string &host, const std::string &dev,
+string StreamAuth::getSrtPushAddr(const string &host, const string &dev,
                         int time, uint16_t port, uint32_t chn) {
     _push_time = time;
     return getSrtAddr(host, dev, "publish", time, chn, port);
 }
 
-std::string StreamAuth::getSrtPullAddr(const std::string &host, const std::string &dev,
+string StreamAuth::getSrtPullAddr(const string &host, const string &dev,
                     int time, uint16_t port, uint32_t chn) {
     if (!_push_time) {
-        return std::string();
+        return string();
     }
     if (!time || time > _push_time)
         time = _push_time;
@@ -144,7 +144,7 @@ std::string StreamAuth::getSrtPullAddr(const std::string &host, const std::strin
     return getSrtAddr(host, dev, "request", time, chn, port);
 }
 
-bool StreamAuth::availableSrtAddr(const std::string &url) {
+bool StreamAuth::availableSrtAddr(const string &url) {
     //1.解析出时间，如果小于当前时间，直接返回错误，如果大于当前时间，构造出sstring
     //sstring = "srt://[host]:[port]?streamid=#!::h=[host],r=/live/[dev]_C[chn],m=publish/request,auth_key=[timestamp]-[rand]-[uid]-[privateKey]"
     //1.1 取出Timestamp 和 privateKey
@@ -171,6 +171,78 @@ bool StreamAuth::availableSrtAddr(const std::string &url) {
     //2.使用MD5算法算出hash-value，如果和请求中的hash-value一致则返回成功，否则返回失败
     return !private_key.compare(md5Sum(str + "-" + _key));
 }
+
+//rtsp
+//-------------------------------------------------------------------------------------------------------------------------------------------
+//rtsp://DomainName/AppName/StreamName?auth_key=method-timestamp-rand-uid-md5hash
+//rtsp://192.168.0.15:554/live/HDMN2DEV_C0?auth_key=push-1669813114-0-0-602c8645457f82b72fce392da3814038
+string StreamAuth::getRtspAddr(const string &host,
+            const string &stream_id, const string &method,
+            int time, uint16_t port) {
+
+    ostringstream oss;
+    oss << "rtsp://" << host << ":" << port;
+    oss << "/live/" << stream_id;
+    oss << "?auth_key=" << method << "-" << time << "-0-0-";
+
+    //md5sum(uri+method-time+rand+uid+accessToken)
+    string ret;
+    ret = oss.str(); ret.append(md5Sum(string(oss.str()) + _key));
+
+    //如果是知名端口号554，去掉它
+    if (port == 554)
+        ret.erase(ret.rfind(":"), 4);
+
+    return ret;
+}
+
+string StreamAuth::getRtspPushAddr(const string &host,
+                const string &stream_id, int time, uint16_t port) {
+    _push_time = time;
+    return getRtspAddr(host, stream_id, "push", time, port);
+}
+
+/** 如果time=0, 则使用推流地址设置的time，如果time>0, 应该判断不能大于推流地址的time */
+string StreamAuth::getRtspPullAddr(const string &host, const string &stream_id,
+                        int time, uint16_t port) {
+    if (!_push_time) {
+        return string();
+    }
+    if (!time || time > _push_time)
+        time = _push_time;
+
+    return getRtspAddr(host, stream_id, "pull", time, port);
+}
+
+bool StreamAuth::availableRtspAddr(const string &url) {
+    //1.解析出时间，如果小于当前时间，直接返回错误，如果大于当前时间，构造出sstring
+    //sstring = "rtsp://host:port/live/dev_Cchn?auth_key=method-timestamp-rand-uid-privateKey"
+    //1.1 取出Timestamp 和 privateKey
+    size_t pos = url.find("?auth_key=");
+    if (pos == string::npos)
+        return false;
+
+    string auth_key = url.substr(pos+10);
+    pos = auth_key.find("-");
+    if (pos == string::npos)
+        return false;
+
+    string str = auth_key.substr(pos+1, 10);
+    int nts = ::atoi(str.c_str());
+    int cur_time = ::time(NULL);
+    if (nts < cur_time)
+        return false;
+
+    pos = url.rfind("-");
+    string private_key = url.substr(pos+1, url.size() - (pos+1));
+    str.resize(0);
+    str = url.substr(0, pos);
+
+    //2.使用MD5算法算出hash-value，如果和请求中的hash-value一致则返回成功，否则返回失败
+    return !private_key.compare(md5Sum(str + "-" + _key));
+}
+
+
 
 // #define AUTH_TEST
 #ifdef AUTH_TEST

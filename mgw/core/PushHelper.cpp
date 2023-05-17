@@ -63,22 +63,23 @@ void PushHelper::start(const string &url, onPublished on_pubished, onShutdown on
             return;
         }
 
-        //先返回状态通知
-        if (strong_self->_on_pubished) {
-            //真的发生了异常，记录下来
-            if (ex.operator bool()) {
-                strong_self->_info.stopTime = ::time(NULL);
-                strong_self->_info.status = ChannelStatus_Idle;
-                do_retry(ex);
-            } else {
-                *failed_cnt = 0;
-                strong_self->_info.startTime = ::time(NULL);
-                strong_self->_info.status = ChannelStatus_Pushing;
-                InfoL << "Publish " << strong_self->_info.url << " success";
-            }
+        //真的发生了异常，记录下来
+        if (ex.operator bool()) {
+            strong_self->_info.stopTime = ::time(NULL);
+            strong_self->_info.status = ChannelStatus_Idle;
+            do_retry(ex);
+        } else {
+            *failed_cnt = 0;
+            strong_self->_info.startTime = ::time(NULL);
+            strong_self->_info.status = ChannelStatus_Pushing;
+            InfoL << "Publish " << strong_self->_info.url << " success";
+        }
 
-            DebugL << "error: [" << ex.getErrCode() << "]";
+        //返回状态通知,仅发送一次publish结果
+        if (strong_self->_on_pubished) {
+            DebugL << "Publish Result: [" << ex.getErrCode() << "]";
             strong_self->_on_pubished(ex.what(), strong_self->_info.status, strong_self->_info.startTime, (ErrorCode)ex.getErrCode());
+            strong_self->_on_pubished = nullptr;
         }
     });
 

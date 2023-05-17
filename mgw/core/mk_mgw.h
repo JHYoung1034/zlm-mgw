@@ -122,6 +122,7 @@ void mgw_release_pusher(handler_t *h, uint32_t chn);
 bool mgw_has_pusher(handler_t *h, uint32_t chn, bool remote);
 
 /////////////////////////////////////////////////////////////////
+//播放服务属性
 typedef struct play_service_attr {
     bool        stop;
     bool        stop_all;
@@ -133,6 +134,35 @@ typedef struct play_service_attr {
 
 void mgw_set_play_service(handler_t *h, play_service_attr *attr);
 void mgw_get_play_service(handler_t *h, play_service_attr *attr);
+
+/////////////////////////////////////////////////////////////////
+typedef void (*on_played)();
+typedef void (*on_shutdown)();
+typedef void (*on_data)();
+
+typedef struct player_attr {
+    int         channel;
+    const char  *url;
+    const char  *netif;
+    const char  *mtu;
+
+    on_played   played_cb;
+    on_shutdown close_cb;
+    on_data     data_cb;
+}player_attr;
+
+void mgw_add_player(handler_t *h, const player_attr *attr);
+void mgw_release_player(handler_t *h, int channel);
+
+/////////////////////////////////////////////////////////////////
+//Record
+typedef struct record_attr {
+
+}record_attr;
+
+void mgw_add_recorder(handler_t *h, record_attr *attr);
+void mgw_stop_recorder(handler_t *h, int channel);
+
 
 #ifdef __cplusplus
 }

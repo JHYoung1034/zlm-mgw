@@ -23,7 +23,7 @@ public:
 private:
     EventProcess();
     std::string getSnByStreamId(const std::string &streamid);
-    std::string getFullUrl(const std::string &schame, const std::string &url, uint16_t port);
+    std::string getFullUrl(const std::string &schema, const std::string &url, uint16_t port);
 
 };
 

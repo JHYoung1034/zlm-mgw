@@ -8,9 +8,9 @@ using namespace toolkit;
 
 namespace mediakit {
 
-Device::DeviceConfig::DeviceConfig(const std::string &s, const std::string &t,
-                    const std::string &ven, const std::string &ver,
-                    const std::string &access, uint32_t max_br, uint32_t max_4kbr,
+Device::DeviceConfig::DeviceConfig(const string &s, const string &t,
+                    const string &ven, const string &ver,
+                    const string &access, uint32_t max_br, uint32_t max_4kbr,
                     uint32_t pushers, uint32_t players) : 
     sn(s), type(t), vendor(ven), version(ver), access_token(access), max_bitrate(max_br),
     max_4kbitrate(max_4kbr), max_pushers(pushers), max_players(players) {}
@@ -43,15 +43,15 @@ void Device::releasePusher(const string &name) {
         _pusher_map.erase(name);
 }
 
-PlayHelper::Ptr &Device::player(const std::string &name) {
+PlayHelper::Ptr &Device::player(const string &name) {
     auto &player = _player_map[name];
     if (!player.operator bool()) {
-        player = make_shared<PlayHelper>(getSourceChn(name));
+        player = make_shared<PlayHelper>(getSourceChn(name), 10);
     }
     return player;
 }
 
-void Device::releasePlayer(const std::string &name) {
+void Device::releasePlayer(const string &name) {
     if (_player_map.find(name) != _player_map.end())
         _player_map.erase(name);
 }
@@ -85,7 +85,7 @@ uint32_t Device::players(const string &schema) {
     return _total_players.load();
 }
 
-string Device::getPushaddr(uint32_t chn, const std::string &schema) {
+string Device::getPushaddr(uint32_t chn, const string &schema) {
     if (!_cfg.push_addr.empty())
         return _cfg.push_addr;
 
@@ -104,12 +104,17 @@ string Device::getPushaddr(uint32_t chn, const std::string &schema) {
         uint16_t srt_port = mINI::Instance()[SrtSrv::kPort];
         _cfg.push_addr = _auth.getSrtPushAddr(host, _cfg.sn.substr(0, 8),
                             _start_time + available_time, chn, srt_port);
+    } else if (schema == "rtsp") {
+        uint16_t rtsp_port = mINI::Instance()[Rtsp::kPort];
+        ostringstream oss;
+        oss << _cfg.sn.substr(0, 8) << "_C" << chn;
+        return _auth.getRtspPushAddr(host, oss.str(), _start_time + available_time, rtsp_port);
     }
 
     return _cfg.push_addr;
 }
 
-string Device::getPlayaddr(uint32_t chn, const std::string &schema) {
+string Device::getPlayaddr(uint32_t chn, const string &schema) {
     string play_addr;
     GET_CONFIG(uint32_t, available_time, Mgw::kUrlValidityPeriodSec);
     GET_CONFIG(string, host, Mgw::kOutHostIP);
@@ -127,6 +132,11 @@ string Device::getPlayaddr(uint32_t chn, const std::string &schema) {
         uint16_t srt_port = mINI::Instance()[SrtSrv::kPort];
         play_addr = _auth.getSrtPullAddr(host, _cfg.sn.substr(0, 8),
                             _start_time + available_time, chn, srt_port);
+    } else if (schema == "rtsp") {
+        uint16_t rtsp_port = mINI::Instance()[Rtsp::kPort];
+        ostringstream oss;
+        oss << _cfg.sn.substr(0, 8) << "_C" << chn;
+        return _auth.getRtspPullAddr(host, oss.str(), _start_time + available_time, rtsp_port);
     }
     return play_addr;
 }
@@ -137,11 +147,13 @@ bool Device::availableAddr(const string &url) {
         result = _auth.availableRtmpAddr(url);
     } else if (url.substr(0, 6) == "srt://") {
         result = _auth.availableSrtAddr(url);
+    } else if (url.substr(0, 7) == "rtsp://") {
+        result = _auth.availableRtspAddr(url);
     }
     return result;
 }
 
-void Device::pusher_for_each(std::function<void(PushHelper::Ptr)> func) {
+void Device::pusher_for_each(function<void(PushHelper::Ptr)> func) {
     for (auto pusher : _pusher_map)
         func(pusher.second);
 }
@@ -175,7 +187,7 @@ void DeviceHelper::releaseDevice() {
 void DeviceHelper::addPusher(const string &name, const string &url, MediaSource::Ptr src,
                     PushHelper::onPublished on_pubished, PushHelper::onShutdown on_shutdown,
                     const string &netif, uint16_t mtu) {
-    GET_CONFIG(int, max_retry, Mgw::kMaxRetryPush);
+    GET_CONFIG(int, max_retry, Mgw::kMaxRetry);
     auto dev = device();
     auto pusher = dev->pusher(name);
     if (pusher->status() != ChannelStatus_Idle) {
@@ -239,7 +251,7 @@ void DeviceHelper::stopTunnelPusher() {
     releasePusher(TUNNEL_PUSHER);
 }
 
-void DeviceHelper::pusher_for_each(std::function<void(PushHelper::Ptr)> func) {
+void DeviceHelper::pusher_for_each(function<void(PushHelper::Ptr)> func) {
     device()->pusher_for_each(func);
 }
 
@@ -259,7 +271,7 @@ uint64_t DeviceHelper::pushTotalBytes() {
 }
 
 //设置允许的播放协议
-void DeviceHelper::enablePlayProtocol(bool enable, bool force_stop, const std::string &proto) {
+void DeviceHelper::enablePlayProtocol(bool enable, bool force_stop, const string &proto) {
     auto dev = device();
     if (0 == ::strncasecmp(proto.data(), "rtmp", 4)) {
         //是否开启转换为rtmp/flv
@@ -281,7 +293,7 @@ void DeviceHelper::enablePlayProtocol(bool enable, bool force_stop, const std::s
 
 //////////////////////////////////////////////////////////
 //static 函数
-Device::Ptr DeviceHelper::findDevice(const std::string &name, bool like) {
+Device::Ptr DeviceHelper::findDevice(const string &name, bool like) {
     if (name.empty()) {
         return nullptr;
     }
@@ -303,7 +315,7 @@ Device::Ptr DeviceHelper::findDevice(const std::string &name, bool like) {
     return device;
 }
 
-void DeviceHelper::device_for_each(std::function<void(Device::Ptr)> func) {
+void DeviceHelper::device_for_each(function<void(Device::Ptr)> func) {
     lock_guard<recursive_mutex> lock(_mtx);
     for (auto dev : _device_map) {
         func(dev.second);
@@ -333,7 +345,7 @@ static inline int getChn(const string &name, const string &sub) {
     return chn;
 }
 
-int getOutputChn(const std::string &name) {
+int getOutputChn(const string &name) {
     return getChn(name, "O");
 }
 
@@ -341,26 +353,26 @@ int getSourceChn(const string &name) {
     return getChn(name, "S");
 }
 
-void urlAddPort(std::string &url, uint16_t port) {
-    std::size_t pos = url.find("://");
-    if (pos == std::string::npos)
+void urlAddPort(string &url, uint16_t port) {
+    size_t pos = url.find("://");
+    if (pos == string::npos)
         return;
 
     //sub_url = host[:port]/xxx/yyy
-    std::string sub_url = url.substr(pos+3);
-    std::size_t ip_pos = sub_url.find("]");
-    if (ip_pos != std::string::npos) {
+    string sub_url = url.substr(pos+3);
+    size_t ip_pos = sub_url.find("]");
+    if (ip_pos != string::npos) {
         //IPv6
-        std::size_t port_pos = sub_url.find("]:");
-        if (port_pos == std::string::npos) {
+        size_t port_pos = sub_url.find("]:");
+        if (port_pos == string::npos) {
             ostringstream oss;
             oss << ":" << port;
             url.insert(pos+1, oss.str());
         }
     } else {
         //IPv4
-        std::size_t port_pos = sub_url.find(":");
-        if (port_pos == std::string::npos) {
+        size_t port_pos = sub_url.find(":");
+        if (port_pos == string::npos) {
             ostringstream oss;
             oss << ":" << port;
             url.insert(sub_url.find("/") + pos + 3, oss.str());

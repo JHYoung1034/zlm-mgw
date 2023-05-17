@@ -31,7 +31,10 @@ public:
             MediaSource(DMSP_SCHEMA, vhost, app, stream_id), _ring_size(ring_size) {
     }
 
-    ~DmspMediaSource() override { flush(); }
+    ~DmspMediaSource() override {
+        flush();
+        DebugL << "source release: " << getUrl();
+    }
 
     /**
      * 	获取媒体源的环形缓冲

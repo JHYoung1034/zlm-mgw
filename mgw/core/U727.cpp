@@ -1,8 +1,10 @@
 #include "U727.h"
 #include "Common/config.h"
 #include "UcastDevice.h"
+#include "openssl/sha.h"
 
 using namespace std;
+using namespace toolkit;
 
 /**< u727实例必须和u727消息会话绑定在同一个线程上，在其他地方调用u727实例，
  *   比如说设备调用发送通知的时候，必须切换到u727绑定的线程再发送通知，
@@ -20,15 +22,99 @@ using namespace std;
 
 namespace mediakit {
 
-void U727::startStream(const string &id, uint32_t delay_ms, StreamType src_type,
-            const string &src, StreamType dest_type, const string &dest) {
+static inline string gen_access_token(void *addr)
+{
+    unsigned char sha1[21] = {};
+    string result;
 
-    //1. 查找源，如果找不到，就请求设备推流，或者代理拉网络流，或者从本地文件输入
-    //2. 根据目标类型，开启一个网络推流(rtmp/rtsp/srt/ts/domainsock)
+    time_t now;
+    char *datetime;
+    time(&now);
+    datetime = ctime(&now);
+
+    int pointer = (int)(*(int*)addr);
+    char buf[20] = {};
+    sprintf(buf, "0x%x", pointer);
+
+    string src = string(buf) + string(datetime);
+
+    SHA1((const unsigned char*)src.data(), src.size(), sha1);
+    int i = 0;
+    char tmp[3] = {0};
+    for (i = 0; i < 20; i++) {
+        sprintf(tmp, "%02x", sha1[i]);
+        result.append(tmp);
+    }
+
+    return result;
 }
 
-void U727::stopStream(const string &id) {
+weak_ptr<U727> U727::_static_u727;
 
+U727::U727() : _start_time(::time(NULL)) {
+    _auth.updateKey(gen_access_token((void*)this));
+}
+
+void U727::u727Ready() {
+    _static_u727 = shared_from_this();
+}
+
+string U727::getRtspPushAddr(const string &stream_id) {
+    GET_CONFIG(uint32_t, available_time, Mgw::kUrlValidityPeriodSec);
+    GET_CONFIG(std::string, host, Mgw::kOutHostIP);
+    if (host.empty()) {
+        WarnL << "host is empty!";
+        return "";
+    }
+    uint16_t rtsp_port = mINI::Instance()[Rtmp::kPort];
+    return _auth.getRtspPushAddr(host, stream_id, _start_time+available_time);
+}
+
+string U727::getRtspPullAddr(const string &stream_id) {
+    GET_CONFIG(uint32_t, available_time, Mgw::kUrlValidityPeriodSec);
+    GET_CONFIG(std::string, host, Mgw::kOutHostIP);
+    if (host.empty()) {
+        WarnL << "host is empty!";
+        return "";
+    }
+    uint16_t rtsp_port = mINI::Instance()[Rtmp::kPort];
+    return _auth.getRtspPullAddr(host, stream_id, _start_time+available_time);
+}
+
+bool U727::availableRtspAddr(const string &url) {
+    return _auth.availableRtspAddr(url);
+}
+
+PushHelper::Ptr U727::pusher(const string &stream_id) {
+    auto &pusher = _pusher_map[stream_id];
+    if (!pusher) {
+        pusher = make_shared<PushHelper>(0);
+    }
+    return pusher;
+}
+
+PlayHelper::Ptr U727::player(const string &stream_id) {
+    auto &player = _player_map[stream_id];
+    if (!player) {
+        player = make_shared<PlayHelper>(stream_id, 10);
+    }
+    return player;
+}
+
+void U727::releasePusher(const string &stream_id) {
+    if (_pusher_map.find(stream_id) != _pusher_map.end()) {
+        _pusher_map.erase(stream_id);
+    }
+}
+
+void U727::releasePlayer(const string &stream_id) {
+    if (_player_map.find(stream_id) != _player_map.end()) {
+        _player_map.erase(stream_id);
+    }
+}
+
+void U727::stopStream(const std::string &stream_id) {
+    releasePusher(stream_id);
 }
 
 }

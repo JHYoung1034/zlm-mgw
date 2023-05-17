@@ -46,6 +46,7 @@ PusherBase::Ptr PusherBase::createPusher(const EventPoller::Ptr &poller,
     }
 
     if (strcasecmp("dmsp", prefix.data()) == 0) {
+        DebugL << "src: " << src.get();
         return PusherBase::Ptr(new DmspPusherImp(poller, std::dynamic_pointer_cast<DmspMediaSource>(src)), releasePusher);
     }
 

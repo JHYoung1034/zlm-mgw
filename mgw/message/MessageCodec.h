@@ -42,7 +42,8 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
     //发送消息到u727
     void sendDeviceOnline(const std::string &sn, const std::string &type,
-                        const std::string &ver, const std::string &ven);
+                        const std::string &ver, const std::string &ven,
+                        const std::string play_url);
     void sendDeviceOffline(const std::string &sn);
     void sendStreamStatus(const std::string &stream_id, int status, int start_time, int err);
     void sendStreamStarted(const std::string &sn, uint32_t channel, const std::string &url);

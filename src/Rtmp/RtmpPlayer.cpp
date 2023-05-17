@@ -420,6 +420,11 @@ void RtmpPlayer::seekToMilliSecond(uint32_t seekMS){
     });
 }
 
+void RtmpPlayer::setNetif(const std::string &netif, uint16_t mss) {
+    _netif = netif;
+    _mss = mss;
+}
+
 ////////////////////////////////////////////
 float RtmpPlayerImp::getDuration() const
 {

@@ -7,6 +7,7 @@ using namespace toolkit;
 namespace mediakit {
 
  DmspPusher::DmspPusher(const EventPoller::Ptr &poller,const DmspMediaSource::Ptr &src) : DmsClient(poller) {
+    DebugL << "src: " << src.get() << ", bool: " << src.operator bool();
     _publish_src = src;
  }
 

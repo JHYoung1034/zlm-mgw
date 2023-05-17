@@ -21,8 +21,8 @@ const char *DmspSplitter::onSearchPacketTail(const char *data, size_t len) {
 
 
 void DmspSplitter::sendDmsp(const DmspPacket::Ptr &packet) {
-    // onSendRawData(obtainBuffer((const void *)&packet->info, sizeof(packet->info)));
-    onSendRawData(dynamic_pointer_cast<Buffer>(packet));
+    onSendRawData(obtainBuffer((const void *)&packet->info, sizeof(packet->info)));
+    onSendRawData(move(make_shared<BufferLikeString>(move(packet->buffer))));
 }
 
 BufferRaw::Ptr DmspSplitter::obtainBuffer(const void *data, size_t len) {

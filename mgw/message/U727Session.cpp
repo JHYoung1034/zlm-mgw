@@ -19,7 +19,7 @@ U727Session::U727Session(const Socket::Ptr &sock)
 
 U727Session::~U727Session() {
 
-    if (_event_handle_init) {
+    if (_init_once) {
         NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastDeviceOnline);
         NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastPush);
         NoticeCenter::Instance().delListener(this, Broadcast::kBroadcastStreamStatus);
@@ -79,7 +79,7 @@ void U727Session::setEventHandle() {
             }
 
             if (enable) {
-                strong_self->sendDeviceOnline(config.sn, config.type, config.version, config.vendor);
+                strong_self->sendDeviceOnline(config.sn, config.type, config.version, config.vendor, config.play_addr);
             } else {
                 strong_self->sendDeviceOffline(config.sn);
             }
@@ -138,12 +138,14 @@ void U727Session::onProcessCmd(ProtoBufDec &dec) {
         s_cmd_functions.emplace("stopStream", &U727Session::onMsg_stopStream);
         s_cmd_functions.emplace("u727keepAlive", &U727Session::onMsg_u727KeepAlive);
         s_cmd_functions.emplace("queryOnlineDevReq", &U727Session::onMsg_queryOnlineDevReq);
+        s_cmd_functions.emplace("queryStreamReq", &U727Session::onMsg_queryStreamReq);
 
     });
 
-    if (!_event_handle_init) {
+    if (!_init_once) {
         setEventHandle();
-        _event_handle_init = true;
+        _u727->u727Ready();
+        _init_once = true;
     }
 
     string method = dec.load();
@@ -201,97 +203,172 @@ void U727Session::onMsg_getSrvPort(ProtoBufDec &dec) {
     sendResponse(enc);
 }
 
-void U727Session::startStream(const string &stream_id, uint32_t delay_ms, StreamType src_type,
-            const string &src, StreamType dest_type, const string &dest) {
+void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
+                    StreamType src_type, const string &src_url,
+                    StreamType dest_type, const string &dest_url,
+                    onStatus on_status) {
 
     MediaInfo info;
-
     Device::Ptr device = nullptr;
-    if (src_type == StreamType_Dev && !src.empty()) {
-        GET_CONFIG(string, tunnel_protocol, Mgw::kStreamTunnel);
-        device = DeviceHelper::findDevice(src, false);
+    weak_ptr<U727Session> weak_self = dynamic_pointer_cast<U727Session>(shared_from_this());
+    void *listen_tag = &info;
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //输入任务
+    if (src_type == StreamType_Dev) {
+        //源是设备的输入源,需要异步查找源，如果找不到，需要通知设备推流上来
+        device = DeviceHelper::findDevice(src_url, false);
         if (!device) {
-            WarnL << "Do not exist device: " << src;
+            WarnL << "Do not exist device: " << src_url;
+            string err_des("Do not exist device: "); err_des.append(src_url);
+            on_status(stream_id, -1, err_des, "", "");
             return;
         }
 
-        string src_url = device->getPushaddr(0, tunnel_protocol);
+        GET_CONFIG(string, tunnel_protocol, Mgw::kStreamTunnel);
+        string dev_src_url = device->getPushaddr(0, tunnel_protocol);
+        info.parse(dev_src_url);
         if (info.getUrl().empty()) {
-            WarnL << "Can't parse this source url: " << src_url;
+            WarnL << "Can't parse this source url: " << dev_src_url;
+            return;
         }
-        info.parse(src_url);
+    } else if (src_type == StreamType_Play || src_type == StreamType_File) {
+        //源是网络拉流输入源，需要异步查找源，如果找不到，拉流输入，或者从文件输入
+        string url = string("rtsp://") + string(DEFAULT_VHOST) + "/live/" + stream_id;
+        info.parse(url);
+
+        auto on_play = [weak_self, on_status, stream_id](const string &des, ChannelStatus status, Time_t ts, ErrorCode err) {
+            //输入源播放成功与否都要返回状态给u727
+            DebugL << "play: " << des << ", start_time: " << ts;
+            on_status(stream_id, err, des, "", "");
+        };
+
+        auto on_shutdown = [weak_self](const string &des, ErrorCode err) {
+            //输入源播放终止了，要通知u727
+            DebugL << "play shutdown: " << des << ", err: " << err;
+        };
+
+        NoticeCenter::Instance().addListener(listen_tag, Broadcast::kBroadcastNotFoundStream,
+            [weak_self, info, src_type, src_url, on_play, on_shutdown](BroadcastNotFoundStreamArgs) {
+
+            if (args._schema != info._schema ||
+                args._vhost != info._vhost ||
+                args._app != info._app ||
+                args._streamid != info._streamid) {
+                //不是我们感兴趣的流，忽略它
+                return;
+            }
+
+            auto strong_self = weak_self.lock();
+            if (!strong_self) { return; }
+
+            //收到未找到流事件，切换回自己的线程再处理
+            strong_self->getPoller()->async([weak_self, info, src_type, src_url, on_play, on_shutdown](){
+                auto strong_self = weak_self.lock();
+                if (!strong_self) { return; }
+
+                //此时去拉流或者从文件输入
+                if (src_type == StreamType_Play) {
+                    auto player = strong_self->_u727->player(info._streamid);
+                    if (player->status() != ChannelStatus_Idle) {
+                        player->restart(src_url, on_play, on_shutdown, nullptr);
+                    } else {
+                        player->start(src_url, on_play, on_shutdown, nullptr);
+                    }
+                } else if (src_type == StreamType_File) {
+                    //从录像文件输入
+                }
+            }, false);
+        });
+    } else if (src_type == StreamType_Publish) {
+        //需要根据streamID生成推流地址，等待终端推流上来再做目标输出任务
     }
 
-    weak_ptr<U727Session> weak_self = dynamic_pointer_cast<U727Session>(shared_from_this());
-    auto push_task = [weak_self, stream_id, dest, device/*, on_published, on_shutdown*/](const MediaSource::Ptr &src) {
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //输出任务
+    auto on_published = [weak_self, stream_id, on_status](const string &des, ChannelStatus status, uint32_t ts, int err) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+        string push_url = strong_self->_u727->getRtspPushAddr(stream_id);
+        string play_url = strong_self->_u727->getRtspPullAddr(stream_id);
+        on_status(stream_id, err, des, push_url, play_url);
+    };
+
+    auto on_shutdown = [weak_self, stream_id, on_status](const string &des, int err) {
+        on_status(stream_id, err, des, "", "");
+    };
+
+    auto do_output_task = [listen_tag, weak_self, stream_id, dest_type, dest_url, device, on_published, on_shutdown, info](const MediaSource::Ptr &src) {
+        //不管有没有找到流，这一次监听的时间先删除监听
+        NoticeCenter::Instance().delListener(listen_tag, Broadcast::kBroadcastNotFoundStream);
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
         }
 
+        int result = 0;
+        string des;
         //执行推流任务
         if (src) {
-            // strong_self->_device_helper->addPusher(out_name, url, src, on_published, on_shutdown);
-            auto pusher = device->pusher(stream_id);
-            string url("dmsp://"); url.append(dest);
-
-            if (pusher->status() != ChannelStatus_Idle) {
-                //如果是tunnel pusher，不能手动中断去重推，否则会影响已存在的代理推流
-                if (stream_id == TUNNEL_PUSHER) {
-                    return;
+            if (dest_type == StreamType_Publish) {
+                //向指定url推流
+                PushHelper::Ptr pusher = nullptr;
+                if (device) {
+                    device->pusher(stream_id);
+                } else {
+                    strong_self->_u727->pusher(stream_id);
                 }
 
-                WarnL << "Already exist, release the old and create a new: " << stream_id;
-                pusher->restart(url, nullptr, nullptr, src);
-            } else {
-                pusher->start(url, nullptr, nullptr, 15, src);
+                if (pusher->status() != ChannelStatus_Idle) {
+                    WarnL << "Already exist, release the old and create a new: " << stream_id;
+                    pusher->restart(dest_url, on_published, on_shutdown, src);
+                } else {
+                    pusher->start(dest_url, on_published, on_shutdown, 15, src);
+                }
+            } else if (dest_type == StreamType_Play) {
+                //需要根据stream_id生成拉流地址，返回给u727
+                DebugL << "需要根据stream_id生成拉流地址";
+                on_published("success", ChannelStatus_Idle, ::time(NULL), 0);
+            } else if (dest_type == StreamType_Publish) {
+                //需要生成录像文件到指定路径
+                DebugL << "需要生成录像文件到指定路径: " << dest_url;
             }
 
         } else {
             //过了一段时间还没有等到流，通知设备，推流失败
-            DebugL << "没有找到需要的源";
-            // on_published("Stream Not found.", ChannelStatus_Idle, ::time(NULL), -1);
+            DebugL << "没有找到需要的源: " << info.getUrl();
+            on_published("Stream Not found.", ChannelStatus_Idle, ::time(NULL), -1);
         }
     };
     //异步查找流，找到了就执行推流任务
-    MediaSource::findAsync(info, shared_from_this(), push_task);
+    MediaSource::findAsync(info, shared_from_this(), do_output_task);
 }
 
 static void parseStartStreamReq(const u727::StartStreamReq &req,
             StreamType &src_type, string &src, StreamType &dest_type, string &dest) {
 
     switch (req.src_case()) {
-        case u727::StartStreamReq::kSrcSock: {
-            src_type = StreamType_Sock;
-            src = req.src_sock();
-            break;
-        }
         case u727::StartStreamReq::kSrcDevSn: {
+            //请求设备推流上来
             src_type = StreamType_Dev;
             src = req.src_dev_sn();
             break;
         }
         case u727::StartStreamReq::kSrcPullAddr: {
-            const common::StreamAddress &addr = req.src_pull_addr();
-            if (addr.has_rtmp()) {
-                src = addr.rtmp().uri();
-                src.append(addr.rtmp().code());
-            } else {
-                src = addr.srt().simaddr();
-            }
+            //mgw-server 需要从指定地址拉流作为输入源
+            src_type = StreamType_Play;
+            src = req.src_pull_addr();
             break;
         }
-        case u727::StartStreamReq::kSrcPushAddr: {
-            const common::StreamAddress &addr = req.src_push_addr();
-            if (addr.has_rtmp()) {
-                src = addr.rtmp().uri();
-                src.append(addr.rtmp().code());
-            } else {
-                src = addr.srt().simaddr();
-            }
+        case u727::StartStreamReq::kNeedPush: {
+            //u727需要推流到mgw-server，此时返回一个推流地址给u727，根据stream_id生成地址
+            src_type = StreamType_Publish;
             break;
         }
         case u727::StartStreamReq::kSrcFilePath: {
+            //从指定文件输入
             src_type = StreamType_File;
             src = req.src_file_path();
             break;
@@ -300,32 +377,19 @@ static void parseStartStreamReq(const u727::StartStreamReq &req,
     }
 
     switch (req.dest_case()) {
-        case u727::StartStreamReq::kDestSock: {
-            dest_type = StreamType_Sock;
-            dest = req.dest_sock();
-            break;
-        }
-        case u727::StartStreamReq::kDestPullAddr: {
-            const common::StreamAddress &addr = req.dest_pull_addr();
-            if (addr.has_rtmp()) {
-                dest = addr.rtmp().uri();
-                dest.append(addr.rtmp().code());
-            } else {
-                dest = addr.srt().simaddr();
-            }
-            break;
-        }
         case u727::StartStreamReq::kDestPushAddr: {
-            const common::StreamAddress &addr = req.dest_push_addr();
-            if (addr.has_rtmp()) {
-                dest = addr.rtmp().uri();
-                dest.append(addr.rtmp().code());
-            } else {
-                dest = addr.srt().simaddr();
-            }
+            //向指定url推流
+            dest_type = StreamType_Publish;
+            dest = req.dest_push_addr();
+            break;
+        }
+        case u727::StartStreamReq::kNeedPull: {
+            //本地监听等待拉流播放，需要返回播放地址给u727，根据stream_id生成地址
+            dest_type = StreamType_Play;
             break;
         }
         case u727::StartStreamReq::kDestFilePath: {
+            //输入到指定文件
             dest_type = StreamType_File;
             dest = req.dest_file_path();
             break;
@@ -337,25 +401,35 @@ static void parseStartStreamReq(const u727::StartStreamReq &req,
 void U727Session::onMsg_startStreamReq(ProtoBufDec &dec) {
     DebugP(this) << "onMsg_startStreamReq:" << dec.toString();
 
-    int result = 0;
-    string des("success"), src, dest;
+    string src, dest;
     StreamType src_type = StreamType_None, dest_type = StreamType_None;
     const u727::StartStreamReq &req = dec.messge()->startstreamreq();
 
     parseStartStreamReq(req, src_type, src, dest_type, dest);
 
-    //开始domain socket 推流到u727
-    startStream(req.stream_id(), req.delay_ms(), src_type, src, dest_type, dest);
+    weak_ptr<U727Session> weak_self = dynamic_pointer_cast<U727Session>(shared_from_this());
+    auto on_status = [weak_self, src_type, dest_type](const string &stream_id, int res, const string &des,
+                                const string &push_url, const string &play_url) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) { return; }
 
-    ////////////////////////////////////////////////////
-    MsgPtr msg = make_shared<mgw::MgwMsg>();
-    u727::StartStreamReply *reply = msg->mutable_startstreamreply();
-    reply->set_stream_id(req.stream_id());
-    reply->set_result(result);
-    reply->set_descrip(des);
+        MsgPtr msg = make_shared<mgw::MgwMsg>();
+        u727::StartStreamReply *reply = msg->mutable_startstreamreply();
+        reply->set_stream_id(stream_id);
+        reply->set_result(res);
+        reply->set_descrip(des);
+        if (src_type == StreamType_Publish) {
+            reply->set_push_url(push_url);
+        }
+        if (dest_type == StreamType_Play) {
+            reply->set_pull_url(play_url);
+        }
 
-    ProtoBufEnc enc(msg);
-    sendResponse(enc);
+        ProtoBufEnc enc(msg);
+        strong_self->sendResponse(enc);
+    };
+
+    startStream(req.stream_id(), req.delay_ms(), src_type, src, dest_type, dest, on_status);
 }
 
 void U727Session::onMsg_stopStream(ProtoBufDec &dec) {
@@ -384,7 +458,22 @@ void U727Session::onMsg_queryOnlineDevReq(ProtoBufDec &dec) {
         info->set_type(config.type);
         info->set_version(config.version);
         info->set_vendor(config.vendor);
+        //给u727返回一个设备流的rtsp拉流地址
+        info->set_stream_url(device->getPlayaddr(0, "rtsp"));
     });
+
+    ProtoBufEnc enc(msg);
+    sendResponse(enc);
+}
+
+void U727Session::onMsg_queryStreamReq(ProtoBufDec &dec) {
+    DebugP(this) << "onMsg_queryStreamReq: " << dec.toString();
+
+
+    ////////////////////////////////////////////////////////////////
+    ///response: queryStreamReply
+    MsgPtr msg = make_shared<mgw::MgwMsg>();
+    u727::QueryStreamStatusReply *reply = msg->mutable_querystreamreply();
 
     ProtoBufEnc enc(msg);
     sendResponse(enc);

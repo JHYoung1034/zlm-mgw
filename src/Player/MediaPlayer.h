@@ -28,9 +28,16 @@ public:
     toolkit::EventPoller::Ptr getPoller();
     void setOnCreateSocket(toolkit::Socket::onCreateSocket cb);
 
+    //设置绑定到指定的网卡，如果指定了mss，在发送协议控制包之前应该先协商好包大小
+    //如rtmp，应该在发送connect之前发送setChunkSize
+    void setNetif(const std::string &netif, uint16_t mss) override;
+
 private:
     toolkit::EventPoller::Ptr _poller;
     toolkit::Socket::onCreateSocket _on_create_socket;
+
+    uint16_t _mss;
+    std::string _netif;
 };
 
 } /* namespace mediakit */

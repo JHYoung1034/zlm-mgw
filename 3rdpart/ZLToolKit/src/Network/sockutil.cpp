@@ -492,7 +492,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *n
                 close(sockfd);
                 return -1;
             }
-        } else if (!strcmp(netif, "default") && !strcmp(netif, "::")) {
+        } else if (0 != strcmp(netif, "default") && 0 != strcmp(netif, "::")) {
             if (-1 == bind_netif(sockfd, netif)) {
                 close(sockfd);
                 return -1;

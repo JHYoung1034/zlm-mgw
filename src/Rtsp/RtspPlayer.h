@@ -37,6 +37,7 @@ public:
     void speed(float speed) override;
     void teardown() override;
     float getPacketLossRate(TrackType type) const override;
+    void setNetif(const std::string &netif, uint16_t mss) override;
 
 protected:
     //派生类回调函数
@@ -109,6 +110,9 @@ private:
     void createUdpSockIfNecessary(int track_idx);
 
 private:
+    uint16_t _mss;
+    std::string _netif;
+
     //是否为性能测试模式
     bool _benchmark_mode = false;
     //轮流发送rtcp与GET_PARAMETER保活

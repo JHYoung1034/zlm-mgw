@@ -50,6 +50,9 @@ private:
 class U727Session : public toolkit::Session, public MessageCodec {
 public:
     using Ptr = std::shared_ptr<U727Session>;
+    using onStatus = std::function<void(const std::string &, int, const std::string &,
+                                        const std::string &, const std::string &)>;
+
     U727Session(const toolkit::Socket::Ptr &sock);
     ~U727Session() override;
 
@@ -75,14 +78,16 @@ private:
     void onMsg_stopStream(ProtoBufDec &dec);
     void onMsg_u727KeepAlive(ProtoBufDec &dec);
     void onMsg_queryOnlineDevReq(ProtoBufDec &dec);
+    void onMsg_queryStreamReq(ProtoBufDec &dec);
 
     ///////////////////////////////////////////////
     void setEventHandle();
-    void startStream(const std::string &id, uint32_t delay_ms, StreamType src_type,
-            const std::string &src, StreamType dest_type, const std::string &dest);
+    void startStream(const std::string &stream_id, uint32_t delay_ms,
+                    StreamType src_type, const std::string &src,
+                    StreamType dest_type, const std::string &dest, onStatus on_status);
 
 private:
-    bool _event_handle_init = false;
+    bool _init_once = false;
     uint32_t _total_bytes = 0;
     //数据接收超时计时器
     toolkit::Ticker _ticker;

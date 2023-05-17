@@ -64,6 +64,8 @@ public:
      */
     void teardown() override;
 
+    void setNetif(const std::string &netif, uint16_t mss) override;
+
 protected:
     /**
      * 收到ts包
@@ -95,6 +97,9 @@ private:
     };
 
 private:
+    uint16_t _mss;
+    std::string _netif;
+
     bool _play_result = false;
     int64_t _last_sequence = -1;
     std::string _m3u8;

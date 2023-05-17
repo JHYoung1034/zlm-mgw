@@ -79,10 +79,10 @@ onceToken token1([](){
 ////////////RTSP服务器配置///////////
 namespace Rtsp {
 #define RTSP_FIELD "rtsp."
-const string kPort = RTSP_FIELD"port";
+// const string kPort = RTSP_FIELD"port";
 const string kSSLPort = RTSP_FIELD"sslport";
 onceToken token1([](){
-    mINI::Instance()[kPort] = 554;
+    // mINI::Instance()[kPort] = 554;
     mINI::Instance()[kSSLPort] = 332;
 },nullptr);
 

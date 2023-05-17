@@ -35,6 +35,7 @@ public:
     void pause(bool bPause) override;
     void speed(float speed) override;
     void teardown() override;
+    void setNetif(const std::string &netif, uint16_t mss) override;
 
 protected:
     virtual bool onCheckMeta(const AMFValue &val) = 0;
@@ -77,6 +78,9 @@ protected:
     void send_pause(bool pause);
 
 private:
+    uint16_t _mss;
+    std::string _netif;
+
     std::string _app;
     std::string _stream_id;
     std::string _tc_url;

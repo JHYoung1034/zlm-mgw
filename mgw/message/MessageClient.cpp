@@ -185,7 +185,7 @@ void MessageClient::onMsg_startTunnelPush(ProtoBufDec &dec) {
 }
 
 void MessageClient::omMsg_stopTunnelPush(ProtoBufDec &dec) {
-    //调用设备使用，停止一个指定的推流，一般是设备到mgw-server的流
+    //调用设备实例，停止一个指定的推流，一般是设备到mgw-server的流
     const device::StopPushingStream &req = dec.messge()->stoppushing();
     auto strong_dev_helper = _device_helper.lock();
     if (strong_dev_helper) {

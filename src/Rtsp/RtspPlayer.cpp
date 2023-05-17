@@ -750,6 +750,11 @@ int RtspPlayer::getTrackIndexByTrackType(TrackType track_type) const {
     throw SockException(Err_shutdown, StrPrinter << "no such track with type:" << getTrackString(track_type));
 }
 
+void RtspPlayer::setNetif(const std::string &netif, uint16_t mss) {
+    _netif = netif;
+    _mss = mss;
+}
+
 ///////////////////////////////////////////////////
 // RtspPlayerImp
 float RtspPlayerImp::getDuration() const

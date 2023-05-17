@@ -58,7 +58,7 @@ public:
      * 设置网卡适配器,使用该网卡与服务器通信
      * @param local_ip 本地网卡ip
      */
-    virtual void setNetAdapter(const std::string &local_ip);
+    virtual void setNetAdapter(const std::string &local_ip, uint16_t mss = 1500);
 
 protected:
     /**
@@ -93,6 +93,7 @@ private:
     void onSockConnect(const SockException &ex);
 
 private:
+    uint16_t _mss;
     std::string _net_adapter = "::";
     std::shared_ptr<Timer> _timer;
     //对象个数统计
