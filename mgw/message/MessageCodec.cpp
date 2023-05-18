@@ -284,6 +284,8 @@ void MessageCodec::sendStreamStarted(const string &sn, uint32_t channel, const s
         srt->set_simaddr(url);
     }
 
+    DebugL << "sendStreamStarted: " << msg->DebugString();
+
     ProtoBufEnc enc(msg);
     sendMessage(enc, false);
 }
@@ -303,6 +305,8 @@ void MessageCodec::sendStreamStoped(const string &sn, uint32_t channel, const st
         common::SRTStreamAddress *srt = addr->mutable_srt();
         srt->set_simaddr(url);
     }
+
+    DebugL << "sendStreamStoped: " << msg->DebugString();
 
     ProtoBufEnc enc(msg);
     sendMessage(enc, false);

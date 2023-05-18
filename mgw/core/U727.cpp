@@ -113,8 +113,22 @@ void U727::releasePlayer(const string &stream_id) {
     }
 }
 
-void U727::stopStream(const std::string &stream_id) {
+void U727::pusher_for_each(function<void(PushHelper::Ptr)> func) {
+    for (auto pusher : _pusher_map) {
+        func(pusher.second);
+    }
+}
+
+void U727::player_for_each(function<void(PlayHelper::Ptr)> func) {
+    for (auto player : _player_map) {
+        func(player.second);
+    }
+}
+
+void U727::stopStream(const string &stream_id) {
+    //停止流的时候，直接释放相关的推流和拉流/录像输入
     releasePusher(stream_id);
+    releasePlayer(stream_id);
 }
 
 }

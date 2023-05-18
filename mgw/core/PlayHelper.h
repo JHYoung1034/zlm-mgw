@@ -47,6 +47,7 @@ public:
 
     ChannelStatus status() const { return _info.status; }
     StreamInfo getInfo() const { return _info; }
+    bool isLocalInput() const { return _is_local_input; }
 private:
     //MediaSourceEvent override
     bool close(MediaSource &sender) override;

@@ -5,6 +5,8 @@
 #include "Rtmp/RtmpPlayer.h"
 #include "Rtsp/RtspPlayer.h"
 
+#include <strstream>
+
 using namespace std;
 using namespace toolkit;
 
@@ -13,12 +15,17 @@ namespace mediakit {
 PlayHelper::PlayHelper(int chn, int max_retry) {
     _info.channel = chn;
     _max_retry = max_retry;
+
+    ostringstream oss;
+    oss << "U727_IC"  << chn;
+    _info.id = oss.str();
 }
 
 PlayHelper::PlayHelper(const string &stream_id, int max_retry) {
     _info.channel = 0;
     _max_retry = max_retry;
     _stream_id = stream_id;
+    _info.id = stream_id;
 }
 
 PlayHelper::~PlayHelper() {
@@ -82,7 +89,7 @@ void PlayHelper::startFromNetwork(const string &url) {
         if ((*failed_cnt) >= 0 && (*failed_cnt < strong_self->_max_retry || strong_self->_max_retry < 0)) {
             /**
              * (*failed_cnt) >= 0 说明有过成功拉流
-             * _max_retry 是小于0，或者failed_cnt小于_max_retry才可以重新拉流
+             * _max_retry 小于0，或者failed_cnt小于_max_retry才可以重新拉流
              */
             strong_self->rePlay(url, (*failed_cnt)++);
         } else {
@@ -225,7 +232,17 @@ void PlayHelper::onPlaySuccess() {
         }
         //从本地MP4文件输入
         if (_is_local_input) {
-            _media_src = MediaSource::createFromMP4("", DEFAULT_VHOST, "live", _stream_id, _info.url);
+            _media_src = MediaSource::createFromMP4("rtsp", DEFAULT_VHOST, "live", _stream_id, _info.url);
+            if (!_media_src) {
+                //从录像文件输入失败了，需要通知
+                _info.status = ChannelStatus_Idle;
+                if (_on_play) {
+                    _on_play("Create from MP4 failed", ChannelStatus_Idle, _info.startTime, ErrorCode::NotFound);
+                }
+                return;
+            }
+            _info.status = ChannelStatus_Playing;
+            _on_play("Success", ChannelStatus_Playing, _info.startTime, ErrorCode::Success);
         }
     }
     _muxer->setMediaListener(shared_from_this());
@@ -272,7 +289,7 @@ bool FrameIngest::inputFrame(const Frame::Ptr &frame) {
         if (!strong_self) { return; }
 
         if (strong_self->_on_data) {
-            mgw_packet pkt = {};
+            mgw_packet pkt;
             pkt.data = (uint8_t*)buffer->data();
             pkt.size = buffer->size();
             pkt.dts = dts * 1000;
@@ -299,7 +316,7 @@ bool FrameIngest::inputFrame(const Frame::Ptr &frame) {
             //帧的派发，在同一个线程上，不需要考虑多线程的问题
             _merge.inputFrame(nullptr, flush_video);
 
-            mgw_packet pkt = {};
+            mgw_packet pkt;
             pkt.data = (uint8_t*)frame->data();
             pkt.size = frame->size();
             pkt.dts = frame->dts() * 1000;

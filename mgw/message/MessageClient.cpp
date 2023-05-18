@@ -108,7 +108,7 @@ void MessageClient::onMsg_sessionRsp(ProtoBufDec &dec) {
         Device::DeviceConfig cfg = strong_dev_helper->device()->getConfig();
         //1.如果已经存在比配置的通道数还要大的推流(开机自动推流可能会出现这种情况)，应该停止它
         if (rsp.outputcapacity() < cfg.max_pushers) {
-            for (int chn = rsp.outputcapacity(); chn < cfg.max_pushers; chn++) {
+            for (auto chn = rsp.outputcapacity(); chn < cfg.max_pushers; chn++) {
                 strong_dev_helper->releasePusher(getOutputName(true, chn));
             }
         }
@@ -212,7 +212,7 @@ void MessageClient::onMsg_ServerSessionRsp(ProtoBufDec &dec) {
             DeviceHelper::device_for_each([weak_self, currTs](Device::Ptr device) {
                 auto strong_self = weak_self.lock();
                 if (!strong_self) {
-                    return false;
+                    return;
                 }
 
                 MsgPtr msg = make_shared<mgw::MgwMsg>();

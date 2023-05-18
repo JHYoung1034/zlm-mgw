@@ -198,7 +198,8 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
     }
 
     const device::StartOutputStream &req = dec.messge()->startoutput();
-    string out_name = getOutputName(false, req.outchn());
+    int channel = req.outchn();
+    string out_name = getOutputName(false, channel);
     string url;
     const common::StreamAddress &addr = req.address();
     if (addr.has_rtmp()) {
@@ -214,7 +215,7 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
 
     //如果回调中需要对象的所有权，应该传入this,否则应该传入该对象的弱引用
     weak_ptr<DeviceSession> weak_self = dynamic_pointer_cast<DeviceSession>(shared_from_this());
-    auto send_status = [weak_self, req](int status, int err, int start_time){
+    auto send_status = [weak_self, req, out_name](int status, int err, int start_time){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -230,9 +231,12 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
 
         ProtoBufEnc enc(msg);
         strong_self->sendResponse(enc);
+
+        //发送流状态变化事件，通知u727
+        NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastStreamStatus, out_name, status, start_time, err);
     };
 
-    auto on_published = [weak_self, out_name, send_status](const string &des, ChannelStatus status, uint32_t time, int code) {
+    auto on_published = [weak_self, out_name, send_status, channel, url](const string &des, ChannelStatus status, uint32_t time, int code) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -240,6 +244,9 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
 
         if (status == ChannelStatus_Idle || code != 0) {
             ErrorP(strong_self.get()) << "pusher: " << out_name << " failed: " << des;
+        } else {
+            //推流成功，发出一个推流成功事件，u727收到事件后发送通知消息
+            NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastPush, true, strong_self->_device_helper->sn(), channel, url);
         }
         //成功与否，都要通知到device端
         send_status((int)status, code, time);
@@ -284,9 +291,15 @@ void DeviceSession::onMsg_stopProxyPush(ProtoBufDec &dec) {
         return;
     }
 
-    const device::StopOutputStream &info = dec.messge()->stopoutput();
-    string out_name = getOutputName(false, info.outchn());
+    const device::StopOutputStream &req = dec.messge()->stopoutput();
+    string out_name = getOutputName(false, req.outchn());
+    string url = _device_helper->device()->pusher(out_name)->getInfo().url;
+
     _device_helper->releasePusher(out_name);
+
+    if (!url.empty()) {
+        NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastPush, false, _device_helper->sn(), req.outchn(), url);
+    }
 }
 
 void DeviceSession::onMsg_statusReq(ProtoBufDec &dec) {

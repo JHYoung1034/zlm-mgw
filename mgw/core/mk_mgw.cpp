@@ -128,12 +128,3 @@ void mgw_add_player(handler_t *h, const player_attr *attr) {
 void mgw_release_player(handler_t *h, int channel) {
 
 }
-
-//////////////////////////////////////////////////////////////////////////
-void mgw_add_recorder(handler_t *h, record_attr *attr) {
-
-}
-
-void mgw_stop_recorder(handler_t *h, int channel) {
-
-}

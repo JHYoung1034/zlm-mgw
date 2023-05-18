@@ -243,9 +243,10 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
             on_status(stream_id, err, des, "", "");
         };
 
-        auto on_shutdown = [weak_self](const string &des, ErrorCode err) {
+        auto on_shutdown = [weak_self, on_status, stream_id](const string &des, ErrorCode err) {
             //输入源播放终止了，要通知u727
             DebugL << "play shutdown: " << des << ", err: " << err;
+            on_status(stream_id, err, des, "", "");
         };
 
         NoticeCenter::Instance().addListener(listen_tag, Broadcast::kBroadcastNotFoundStream,
@@ -268,20 +269,16 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
                 if (!strong_self) { return; }
 
                 //此时去拉流或者从文件输入
-                if (src_type == StreamType_Play) {
+                if (src_type == StreamType_Play || src_type == StreamType_File) {
                     auto player = strong_self->_u727->player(info._streamid);
                     if (player->status() != ChannelStatus_Idle) {
                         player->restart(src_url, on_play, on_shutdown, nullptr);
                     } else {
                         player->start(src_url, on_play, on_shutdown, nullptr);
                     }
-                } else if (src_type == StreamType_File) {
-                    //从录像文件输入
                 }
             }, false);
         });
-    } else if (src_type == StreamType_Publish) {
-        //需要根据streamID生成推流地址，等待终端推流上来再做目标输出任务
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -331,9 +328,11 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
                 //需要根据stream_id生成拉流地址，返回给u727
                 DebugL << "需要根据stream_id生成拉流地址";
                 on_published("success", ChannelStatus_Idle, ::time(NULL), 0);
-            } else if (dest_type == StreamType_Publish) {
+            } else if (dest_type == StreamType_File) {
                 //需要生成录像文件到指定路径
                 DebugL << "需要生成录像文件到指定路径: " << dest_url;
+                // MediaSource::createFromMP4(src->getSchema(), src->getVhost(), src->getApp(), src->getId(), dest_url);
+                src->setupRecord(Recorder::type_mp4, true, dest_url, 30*60);
             }
 
         } else {
@@ -429,6 +428,12 @@ void U727Session::onMsg_startStreamReq(ProtoBufDec &dec) {
         strong_self->sendResponse(enc);
     };
 
+    if (src_type == StreamType_None || dest_type == StreamType_None) {
+        WarnL << "Source type: " << src_type << ", Destination type: " << dest_type;
+        on_status(req.stream_id(), -1, "Error stream type", "", "");
+        return;
+    }
+
     startStream(req.stream_id(), req.delay_ms(), src_type, src, dest_type, dest, on_status);
 }
 
@@ -469,11 +474,40 @@ void U727Session::onMsg_queryOnlineDevReq(ProtoBufDec &dec) {
 void U727Session::onMsg_queryStreamReq(ProtoBufDec &dec) {
     DebugP(this) << "onMsg_queryStreamReq: " << dec.toString();
 
-
     ////////////////////////////////////////////////////////////////
     ///response: queryStreamReply
     MsgPtr msg = make_shared<mgw::MgwMsg>();
     u727::QueryStreamStatusReply *reply = msg->mutable_querystreamreply();
+
+    auto pack_status = [reply](const StreamInfo &info, bool input) {
+        u727::StreamStatusNotify *status = reply->add_streams_status();
+        status->set_stream_id(info.id);
+        status->set_status(info.status);
+        status->set_starttime(info.startTime);
+        status->set_lasterrcode(0);
+        status->set_stream_type(input ? 1 : 2);
+    };
+
+    //先打包u727的输入，输出流
+    _u727->player_for_each([pack_status](PlayHelper::Ptr player){
+        pack_status(move(player->getInfo()), true);
+    });
+    _u727->pusher_for_each([pack_status](PushHelper::Ptr pusher){
+        pack_status(move(pusher->getInfo()), false);
+    });
+
+    //打包所有设备的输入和输出
+    DeviceHelper::device_for_each([pack_status](Device::Ptr device){
+
+        device->player_for_each([pack_status](PlayHelper::Ptr player){
+            pack_status(move(player->getInfo()), false);
+        });
+        device->pusher_for_each([pack_status](PushHelper::Ptr pusher){
+            pack_status(move(pusher->getInfo()), false);
+        });
+    });
+
+    DebugP(this) << "StreamStatus reply: " << msg->DebugString();
 
     ProtoBufEnc enc(msg);
     sendResponse(enc);

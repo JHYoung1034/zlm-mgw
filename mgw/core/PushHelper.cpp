@@ -8,6 +8,7 @@ namespace mediakit {
 PushHelper::PushHelper(int chn) : _retry_count(-1) {
     _info.channel = chn;
     _info.status = ChannelStatus_Idle;
+    _info.id = getOutputName(false, chn);
 }
 
 PushHelper::~PushHelper() {

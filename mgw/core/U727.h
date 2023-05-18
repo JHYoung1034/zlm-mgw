@@ -37,11 +37,15 @@ public:
     std::string getRtspPullAddr(const std::string &stream_id);
     bool availableRtspAddr(const std::string &url);
 
+    /**推流器管理*/
     PushHelper::Ptr pusher(const std::string &stream_id);
     void releasePusher(const std::string &stream_id);
+    void pusher_for_each(std::function<void(PushHelper::Ptr)> func);
 
+    /**拉流播放器管理*/
     PlayHelper::Ptr player(const std::string &stream_id);
     void releasePlayer(const std::string &stream_id);
+    void player_for_each(std::function<void(PlayHelper::Ptr)> func);
     /** 用于设置静态变量_static_u727 */
     void u727Ready();
 

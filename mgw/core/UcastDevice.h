@@ -113,13 +113,15 @@ public:
     ////////////////////////////////////////////
 
     ProtocolOption getEnableOption() const { return _option; }
-    void pusher_for_each(std::function<void(PushHelper::Ptr)> func);
 
+    //管理推流
     PushHelper::Ptr &pusher(const std::string &name);
     void releasePusher(const std::string &name);
+    void pusher_for_each(std::function<void(PushHelper::Ptr)> func);
+    //管理拉流播放
     PlayHelper::Ptr &player(const std::string &name);
     void releasePlayer(const std::string &name);
-    void enablePlayProtocol(bool enable, const std::string &proto);
+    void player_for_each(std::function<void(PlayHelper::Ptr)> func);
 
 private:
     //设备启动时间
@@ -153,7 +155,7 @@ private:
     //允许的播放协议,如：rtmp, hls, rtsp, http-flv等等协议，默认根据配置文件设置。
     //当需要录制这一个设备流的时候，可以更改这个option
     ProtocolOption _option;
-    //推流实例管理,一个设备会话，始终在同一个线程中操作，不需要加锁保护
+    //推流实例管理，u727会话线程会访问，可能需要加锁，并不会频繁访问
     std::unordered_map<std::string, PushHelper::Ptr> _pusher_map;
     //拉流实例管理
     std::unordered_map<std::string, PlayHelper::Ptr> _player_map;
@@ -243,13 +245,7 @@ private:
     static std::unordered_map<std::string, Device::Ptr> _device_map;
 };
 
-std::string getOutputName(bool remote, uint32_t chn);
-std::string getSourceName(bool remote, uint32_t chn);
 
-int getOutputChn(const std::string &name);
-int getSourceChn(const std::string &name);
-
-void urlAddPort(std::string &url, uint16_t port);
 
 }
 

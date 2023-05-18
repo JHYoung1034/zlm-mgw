@@ -82,6 +82,7 @@ struct StreamInfo {
     ChannelStatus status;
     uint64_t totalByteSnd;
     std::string url;
+    std::string id;
 };
 
 typedef struct mgw_packet {
@@ -97,5 +98,13 @@ typedef struct mgw_packet {
 
 //ErrorCode
 #define mgw_error(e) -(e)
+
+std::string getOutputName(bool remote, uint32_t chn);
+std::string getSourceName(bool remote, uint32_t chn);
+
+int getOutputChn(const std::string &name);
+int getSourceChn(const std::string &name);
+
+void urlAddPort(std::string &url, uint16_t port);
 
 #endif  //__MGW_DEFINES_H__
