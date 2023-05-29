@@ -57,15 +57,15 @@ using namespace mediakit;
 
 namespace mediakit {
 ////////////HTTP配置///////////
-namespace Http {
-#define HTTP_FIELD "http."
-const string kPort = HTTP_FIELD"port";
-const string kSSLPort = HTTP_FIELD"sslport";
-onceToken token1([](){
-    mINI::Instance()[kPort] = 80;
-    mINI::Instance()[kSSLPort] = 443;
-},nullptr);
-}//namespace Http
+// namespace Http {
+// #define HTTP_FIELD "http."
+// const string kPort = HTTP_FIELD"port";
+// const string kSSLPort = HTTP_FIELD"sslport";
+// onceToken token1([](){
+//     mINI::Instance()[kPort] = 80;
+//     mINI::Instance()[kSSLPort] = 443;
+// },nullptr);
+// }//namespace Http
 
 ////////////SHELL配置///////////
 namespace Shell {
@@ -77,36 +77,36 @@ onceToken token1([](){
 } //namespace Shell
 
 ////////////RTSP服务器配置///////////
-namespace Rtsp {
-#define RTSP_FIELD "rtsp."
-// const string kPort = RTSP_FIELD"port";
-const string kSSLPort = RTSP_FIELD"sslport";
-onceToken token1([](){
-    // mINI::Instance()[kPort] = 554;
-    mINI::Instance()[kSSLPort] = 332;
-},nullptr);
+// namespace Rtsp {
+// #define RTSP_FIELD "rtsp."
+// // const string kPort = RTSP_FIELD"port";
+// const string kSSLPort = RTSP_FIELD"sslport";
+// onceToken token1([](){
+//     // mINI::Instance()[kPort] = 554;
+//     mINI::Instance()[kSSLPort] = 332;
+// },nullptr);
 
-} //namespace Rtsp
+// } //namespace Rtsp
 
 ////////////RTMP服务器配置///////////
-namespace Rtmp {
-#define RTMP_FIELD "rtmp."
-// const string kPort = RTMP_FIELD"port";
-const string kSSLPort = RTMP_FIELD"sslport";
-onceToken token1([](){
-    // mINI::Instance()[kPort] = 1935;
-    mINI::Instance()[kSSLPort] = 19350;
-},nullptr);
-} //namespace RTMP
+// namespace Rtmp {
+// #define RTMP_FIELD "rtmp."
+// // const string kPort = RTMP_FIELD"port";
+// const string kSSLPort = RTMP_FIELD"sslport";
+// onceToken token1([](){
+//     // mINI::Instance()[kPort] = 1935;
+//     mINI::Instance()[kSSLPort] = 19350;
+// },nullptr);
+// } //namespace RTMP
 
 ////////////Rtp代理相关配置///////////
-namespace RtpProxy {
-#define RTP_PROXY_FIELD "rtp_proxy."
-const string kPort = RTP_PROXY_FIELD"port";
-onceToken token1([](){
-    mINI::Instance()[kPort] = 10000;
-},nullptr);
-} //namespace RtpProxy
+// namespace RtpProxy {
+// #define RTP_PROXY_FIELD "rtp_proxy."
+// const string kPort = RTP_PROXY_FIELD"port";
+// onceToken token1([](){
+//     mINI::Instance()[kPort] = 10000;
+// },nullptr);
+// } //namespace RtpProxy
 
 ///////////Websocket 客户端配置//////////////
 namespace WsCli {

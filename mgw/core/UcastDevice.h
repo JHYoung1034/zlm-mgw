@@ -28,7 +28,7 @@ public:
 
     using Ptr = std::shared_ptr<Device>;
     using onNoReader = std::function<void()>;
-    using onPlayersChanged = std::function<void(int)>;
+    using onPlayersChanged = std::function<void(bool/*local*/, int/*players*/)>;
     using onNotFoundStream = std::function<void(const std::string &)>;
     using onConfigChanged = std::function<void(const DeviceConfig &)>;
     using onStatusChanged = std::function<void(ChannelType, ChannelId, ChannelStatus, ErrorCode, Time_t)>;
@@ -36,6 +36,7 @@ public:
     friend class DeviceHelper;
 
     struct DeviceConfig {
+        friend class Device;
         std::string     sn;
         std::string     type;
         std::string     vendor;
@@ -88,10 +89,10 @@ public:
             _on_noreader();
         }
     }
-    void doOnPlayersChange(int players) {
+    void doOnPlayersChange(bool local, int players) {
         _total_players = players;
         if (_on_players_changed) {
-            _on_players_changed(players);
+            _on_players_changed(local, players);
         }
     }
     void doOnNotFoundStream(const std::string &full_url) {
@@ -177,9 +178,10 @@ public:
     void releaseDevice();
 
     void addPusher(const std::string &name, const std::string &url, MediaSource::Ptr src,
-                    PushHelper::onPublished on_pubished, PushHelper::onShutdown on_shutdown,
+                    PushHelper::onStatusChanged on_status_changed,
                     const std::string &netif = "default", uint16_t mtu = 1500);
     void releasePusher(const std::string &name);
+    bool hasPusher(const std::string &name);
     //使用mgw-server下发的地址开启tunnel推流
     void startTunnelPusher(const std::string &src);
     void stopTunnelPusher();

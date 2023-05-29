@@ -240,13 +240,13 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
         auto on_play = [weak_self, on_status, stream_id](const string &des, ChannelStatus status, Time_t ts, ErrorCode err) {
             //输入源播放成功与否都要返回状态给u727
             DebugL << "play: " << des << ", start_time: " << ts;
-            on_status(stream_id, err, des, "", "");
+            // on_status(stream_id, err, des, "", "");
         };
 
         auto on_shutdown = [weak_self, on_status, stream_id](const string &des, ErrorCode err) {
             //输入源播放终止了，要通知u727
             DebugL << "play shutdown: " << des << ", err: " << err;
-            on_status(stream_id, err, des, "", "");
+            // on_status(stream_id, err, des, "", "");
         };
 
         NoticeCenter::Instance().addListener(listen_tag, Broadcast::kBroadcastNotFoundStream,
@@ -283,21 +283,20 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //输出任务
-    auto on_published = [weak_self, stream_id, on_status](const string &des, ChannelStatus status, uint32_t ts, int err) {
+    auto on_status_changed = [weak_self, stream_id, on_status](const string &name, ChannelStatus status, Time_t start_ts, const SockException &ex) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
         }
-        string push_url = strong_self->_u727->getRtspPushAddr(stream_id);
-        string play_url = strong_self->_u727->getRtspPullAddr(stream_id);
-        on_status(stream_id, err, des, push_url, play_url);
+        string push_url, play_url;
+        if (!ex && ChannelStatus_Idle != status) {
+            push_url = strong_self->_u727->getRtspPushAddr(stream_id);
+            play_url = strong_self->_u727->getRtspPullAddr(stream_id);
+        }
+        on_status(stream_id, ex.getCustomCode(), ex.what(), push_url, play_url);
     };
 
-    auto on_shutdown = [weak_self, stream_id, on_status](const string &des, int err) {
-        on_status(stream_id, err, des, "", "");
-    };
-
-    auto do_output_task = [listen_tag, weak_self, stream_id, dest_type, dest_url, device, on_published, on_shutdown, info](const MediaSource::Ptr &src) {
+    auto do_output_task = [listen_tag, weak_self, stream_id, dest_type, dest_url, device, on_status_changed, info](const MediaSource::Ptr &src) {
         //不管有没有找到流，这一次监听的时间先删除监听
         NoticeCenter::Instance().delListener(listen_tag, Broadcast::kBroadcastNotFoundStream);
         auto strong_self = weak_self.lock();
@@ -313,21 +312,21 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
                 //向指定url推流
                 PushHelper::Ptr pusher = nullptr;
                 if (device) {
-                    device->pusher(stream_id);
+                    pusher = device->pusher(stream_id);
                 } else {
-                    strong_self->_u727->pusher(stream_id);
+                    pusher = strong_self->_u727->pusher(stream_id);
                 }
 
                 if (pusher->status() != ChannelStatus_Idle) {
                     WarnL << "Already exist, release the old and create a new: " << stream_id;
-                    pusher->restart(dest_url, on_published, on_shutdown, src);
+                    pusher->restart(dest_url, on_status_changed, src);
                 } else {
-                    pusher->start(dest_url, on_published, on_shutdown, 15, src);
+                    pusher->start(dest_url, on_status_changed, 15, src);
                 }
             } else if (dest_type == StreamType_Play) {
                 //需要根据stream_id生成拉流地址，返回给u727
                 DebugL << "需要根据stream_id生成拉流地址";
-                on_published("success", ChannelStatus_Idle, ::time(NULL), 0);
+                on_status_changed(stream_id, ChannelStatus_Idle, ::time(NULL), SockException());
             } else if (dest_type == StreamType_File) {
                 //需要生成录像文件到指定路径
                 DebugL << "需要生成录像文件到指定路径: " << dest_url;
@@ -338,7 +337,7 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
         } else {
             //过了一段时间还没有等到流，通知设备，推流失败
             DebugL << "没有找到需要的源: " << info.getUrl();
-            on_published("Stream Not found.", ChannelStatus_Idle, ::time(NULL), -1);
+            on_status_changed(stream_id, ChannelStatus_Idle, ::time(NULL), SockException(Err_timeout, "Stream notfound", Common_Failed));
         }
     };
     //异步查找流，找到了就执行推流任务

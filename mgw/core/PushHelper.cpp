@@ -5,10 +5,10 @@ using namespace toolkit;
 
 namespace mediakit {
 
-PushHelper::PushHelper(int chn) : _retry_count(-1) {
-    _info.channel = chn;
+PushHelper::PushHelper(const string &name, int channel) : _retry_count(-1) {
+    _info.channel = channel == -1 ? getOutputChn(name) : channel;
     _info.status = ChannelStatus_Idle;
-    _info.id = getOutputName(false, chn);
+    _info.id = name;
 }
 
 PushHelper::~PushHelper() {
@@ -18,15 +18,14 @@ PushHelper::~PushHelper() {
     }
 }
 
-void PushHelper::start(const string &url, onPublished on_pubished, onShutdown on_shutdown, 
-                int max_retry, const MediaSource::Ptr &src, const string &netif, uint16_t mtu) {
+void PushHelper::start(const string &url, onStatusChanged on_status_changed, int max_retry,
+                        const MediaSource::Ptr &src, const string &netif, uint16_t mtu) {
     _retry_count = max_retry;
     _info.url = url;
     _wek_src = src;
     _netif = netif;
     _mtu = mtu;
-    _on_pubished = on_pubished;
-    _on_shutdown = on_shutdown;
+    _on_status_changed = on_status_changed;
     _pusher = make_shared<MediaPusher>(src);
     _pusher->setNetif(netif, mtu);
 
@@ -51,8 +50,10 @@ void PushHelper::start(const string &url, onPublished on_pubished, onShutdown on
         } else {
             //没办法重推了，需要关闭这个推流，通知到外部，外部删除这个推流
             strong_self->_info.stopTime = ::time(NULL);
-            if (strong_self->_on_shutdown) {
-                strong_self->_on_shutdown(ex.what(), ex.getErrCode());
+            strong_self->_info.status = ChannelStatus_Idle;
+            if (strong_self->_on_status_changed) {
+                strong_self->_on_status_changed(strong_self->_info.id,
+                        strong_self->_info.status, strong_self->_info.startTime, ex);
             }
         }
     };
@@ -76,11 +77,10 @@ void PushHelper::start(const string &url, onPublished on_pubished, onShutdown on
             InfoL << "Publish " << strong_self->_info.url << " success";
         }
 
-        //返回状态通知,仅发送一次publish结果
-        if (strong_self->_on_pubished) {
-            DebugL << "Publish Result: [" << ex.getErrCode() << "]";
-            strong_self->_on_pubished(ex.what(), strong_self->_info.status, strong_self->_info.startTime, (ErrorCode)ex.getErrCode());
-            strong_self->_on_pubished = nullptr;
+        //返回推流结果，可能是失败的，可能是成功的
+        if (strong_self->_on_status_changed) {
+            strong_self->_on_status_changed(strong_self->_info.id,
+                        strong_self->_info.status, strong_self->_info.startTime, ex);
         }
     });
 
@@ -90,12 +90,12 @@ void PushHelper::start(const string &url, onPublished on_pubished, onShutdown on
 }
 
 //对于正在推流的通道，如果有新的推流，释放原来的推流，建立一个新的推流
-void PushHelper::restart(const string &url, onPublished on_pubished, onShutdown on_shutdown,
+void PushHelper::restart(const string &url, onStatusChanged on_status_changed,
                         const MediaSource::Ptr &src, const string &netif, uint16_t mtu) {
     if (_pusher && _info.status != ChannelStatus_Idle) {
         _pusher->teardown();
     }
-    start(url, on_pubished, on_shutdown, _retry_count, src, netif, mtu);
+    start(url, on_status_changed, _retry_count, src, netif, mtu);
 }
 
 void PushHelper::rePublish(const std::string &url, int failed_cnt) {
@@ -104,6 +104,9 @@ void PushHelper::rePublish(const std::string &url, int failed_cnt) {
     weak_ptr<PushHelper> weak_self = shared_from_this();
     _info.status = ChannelStatus_RePushing;
     _info.total_retry++;
+    if (_on_status_changed) {
+        _on_status_changed(_info.id, _info.status, _info.startTime, SockException());
+    }
     _timer = std::make_shared<Timer>(delay / 1000.0f, [weak_self, url, failed_cnt]() {
         //推流失败次数越多，则延时越长
         auto strong_self = weak_self.lock();

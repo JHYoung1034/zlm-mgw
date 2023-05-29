@@ -126,7 +126,7 @@ void EventProcess::run() {
             string sn = getSnByStreamId(sender.getId());
             auto device = DeviceHelper::findDevice(sn);
             if (device) {
-                device->doOnPlayersChange(sender.totalReaderCount());
+                device->doOnPlayersChange(true, sender.totalReaderCount());
             }
         });
 

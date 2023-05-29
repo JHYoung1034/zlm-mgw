@@ -167,6 +167,8 @@ const string kNotFound = HTTP_FIELD "notFound";
 const string kDirMenu = HTTP_FIELD "dirMenu";
 const string kForbidCacheSuffix = HTTP_FIELD "forbidCacheSuffix";
 const string kForwardedIpHeader = HTTP_FIELD "forwarded_ip_header";
+const string kPort = HTTP_FIELD"port";
+const string kSSLPort = HTTP_FIELD"sslport";
 
 static onceToken token([]() {
     mINI::Instance()[kSendBufSize] = 64 * 1024;
@@ -194,6 +196,8 @@ static onceToken token([]() {
                                              << endl;
     mINI::Instance()[kForbidCacheSuffix] = "";
     mINI::Instance()[kForwardedIpHeader] = "";
+    mINI::Instance()[kPort] = 80;
+    mINI::Instance()[kSSLPort] = 443;
 });
 
 } // namespace Http
@@ -215,6 +219,7 @@ const string kKeepAliveSecond = RTSP_FIELD "keepAliveSecond";
 const string kDirectProxy = RTSP_FIELD "directProxy";
 const string kLowLatency = RTSP_FIELD"lowLatency";
 const string kPort = RTSP_FIELD "port";
+const string kSSLPort = RTSP_FIELD "sslport";
 
 static onceToken token([]() {
     // 默认Md5方式认证
@@ -224,6 +229,7 @@ static onceToken token([]() {
     mINI::Instance()[kDirectProxy] = 1;
     mINI::Instance()[kLowLatency] = 0;
     mINI::Instance()[kPort] = 554;
+    mINI::Instance()[kSSLPort] = 332;
 });
 } // namespace Rtsp
 
@@ -234,12 +240,14 @@ const string kModifyStamp = RTMP_FIELD "modifyStamp";
 const string kHandshakeSecond = RTMP_FIELD "handshakeSecond";
 const string kKeepAliveSecond = RTMP_FIELD "keepAliveSecond";
 const string kPort = RTMP_FIELD "port";
+const string kSSLPort = RTMP_FIELD "sslport";
 
 static onceToken token([]() {
     mINI::Instance()[kModifyStamp] = false;
     mINI::Instance()[kHandshakeSecond] = 15;
     mINI::Instance()[kKeepAliveSecond] = 15;
     mINI::Instance()[kPort] = 1935;
+    mINI::Instance()[kSSLPort] = 19350;
 });
 } // namespace Rtmp
 
@@ -251,7 +259,6 @@ const string kVideoMtuSize = RTP_FIELD "videoMtuSize";
 const string kAudioMtuSize = RTP_FIELD "audioMtuSize";
 // rtp包最大长度限制，单位是KB
 const string kRtpMaxSize = RTP_FIELD "rtpMaxSize";
-
 const string kLowLatency = RTP_FIELD "lowLatency";
 
 static onceToken token([]() {
@@ -331,6 +338,7 @@ const string kH265PT = RTP_PROXY_FIELD "h265_pt";
 const string kPSPT = RTP_PROXY_FIELD "ps_pt";
 const string kOpusPT = RTP_PROXY_FIELD "opus_pt";
 const string kGopCache = RTP_PROXY_FIELD "gop_cache";
+const string kPort = RTP_PROXY_FIELD"port";
 
 static onceToken token([]() {
     mINI::Instance()[kDumpDir] = "";
@@ -341,6 +349,7 @@ static onceToken token([]() {
     mINI::Instance()[kPSPT] = 96;
     mINI::Instance()[kOpusPT] = 100;
     mINI::Instance()[kGopCache] = 1;
+    mINI::Instance()[kPort] = 10000;
 });
 } // namespace RtpProxy
 

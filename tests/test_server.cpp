@@ -34,17 +34,17 @@ using namespace mediakit;
 
 namespace mediakit {
 ////////////HTTP配置///////////
-namespace Http {
-#define HTTP_FIELD "http."
-#define HTTP_PORT 80
-const string kPort = HTTP_FIELD"port";
-#define HTTPS_PORT 443
-const string kSSLPort = HTTP_FIELD"sslport";
-onceToken token1([](){
-    mINI::Instance()[kPort] = HTTP_PORT;
-    mINI::Instance()[kSSLPort] = HTTPS_PORT;
-},nullptr);
-}//namespace Http
+// namespace Http {
+// #define HTTP_FIELD "http."
+// #define HTTP_PORT 80
+// const string kPort = HTTP_FIELD"port";
+// #define HTTPS_PORT 443
+// const string kSSLPort = HTTP_FIELD"sslport";
+// onceToken token1([](){
+//     mINI::Instance()[kPort] = HTTP_PORT;
+//     mINI::Instance()[kSSLPort] = HTTPS_PORT;
+// },nullptr);
+// }//namespace Http
 
 ////////////SHELL配置///////////
 namespace Shell {
@@ -57,28 +57,28 @@ onceToken token1([](){
 } //namespace Shell
 
 ////////////RTSP服务器配置///////////
-namespace Rtsp {
-#define RTSP_FIELD "rtsp."
-#define RTSP_PORT 554
-#define RTSPS_PORT 322
-const string kPort = RTSP_FIELD"port";
-const string kSSLPort = RTSP_FIELD"sslport";
-onceToken token1([](){
-    mINI::Instance()[kPort] = RTSP_PORT;
-    mINI::Instance()[kSSLPort] = RTSPS_PORT;
-},nullptr);
+// namespace Rtsp {
+// #define RTSP_FIELD "rtsp."
+// #define RTSP_PORT 554
+// #define RTSPS_PORT 322
+// const string kPort = RTSP_FIELD"port";
+// const string kSSLPort = RTSP_FIELD"sslport";
+// onceToken token1([](){
+//     mINI::Instance()[kPort] = RTSP_PORT;
+//     mINI::Instance()[kSSLPort] = RTSPS_PORT;
+// },nullptr);
 
-} //namespace Rtsp
+// } //namespace Rtsp
 
 ////////////RTMP服务器配置///////////
-namespace Rtmp {
-#define RTMP_FIELD "rtmp."
-#define RTMP_PORT 1935
-const string kPort = RTMP_FIELD"port";
-onceToken token1([](){
-    mINI::Instance()[kPort] = RTMP_PORT;
-},nullptr);
-} //namespace RTMP
+// namespace Rtmp {
+// #define RTMP_FIELD "rtmp."
+// #define RTMP_PORT 1935
+// const string kPort = RTMP_FIELD"port";
+// onceToken token1([](){
+//     mINI::Instance()[kPort] = RTMP_PORT;
+// },nullptr);
+// } //namespace RTMP
 }  // namespace mediakit
 
 

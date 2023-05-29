@@ -88,7 +88,7 @@ bool U727::availableRtspAddr(const string &url) {
 PushHelper::Ptr U727::pusher(const string &stream_id) {
     auto &pusher = _pusher_map[stream_id];
     if (!pusher) {
-        pusher = make_shared<PushHelper>(0);
+        pusher = make_shared<PushHelper>(stream_id, 0);
     }
     return pusher;
 }

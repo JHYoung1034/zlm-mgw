@@ -32,7 +32,7 @@ PushHelper::Ptr &Device::pusher(const string &name) {
     // lock_guard<recursive_mutex> lock(_pusher_mtx);
     auto &pusher = _pusher_map[name];
     if (!pusher.operator bool()) {
-        pusher = make_shared<PushHelper>(getOutputChn(name));
+        pusher = make_shared<PushHelper>(name, getOutputChn(name));
     }
     return pusher;
 }
@@ -191,8 +191,7 @@ void DeviceHelper::releaseDevice() {
 }
 
 void DeviceHelper::addPusher(const string &name, const string &url, MediaSource::Ptr src,
-                    PushHelper::onPublished on_pubished, PushHelper::onShutdown on_shutdown,
-                    const string &netif, uint16_t mtu) {
+                    PushHelper::onStatusChanged on_status_changed, const string &netif, uint16_t mtu) {
     GET_CONFIG(int, max_retry, Mgw::kMaxRetry);
     auto dev = device();
     auto pusher = dev->pusher(name);
@@ -203,14 +202,19 @@ void DeviceHelper::addPusher(const string &name, const string &url, MediaSource:
         }
 
         WarnL << "Already exist, release the old and create a new: " << name;
-        pusher->restart(url, on_pubished, on_shutdown, src, netif, mtu);
+        pusher->restart(url, on_status_changed, src, netif, mtu);
     } else {
-        pusher->start(url, on_pubished, on_shutdown, max_retry, src, netif, mtu);
+        pusher->start(url, on_status_changed, max_retry, src, netif, mtu);
     }
 }
 
 void DeviceHelper::releasePusher(const string &name) {
     device()->releasePusher(name);
+}
+
+bool DeviceHelper::hasPusher(const std::string &name) {
+    auto dev = device();
+    return dev->_pusher_map.find(name) != dev->_pusher_map.end();
 }
 
 void DeviceHelper::startTunnelPusher(const string &src) {
@@ -232,12 +236,22 @@ void DeviceHelper::startTunnelPusher(const string &src) {
         }
     }
 
-    //设置推流事件回调函数on_published, on_shutdown
-    auto on_pubished = [](const string& des, ChannelStatus sta, uint32_t ts, int err) {
-
-    };
-    auto on_shutdown = [](const string &des, int err) {
-        //收到这个shutdown通知的时候，应该释放这个实例
+    auto on_status_changed = [](const string &name, ChannelStatus status,
+                                Time_t start_ts, const SockException &ex){
+        DebugL << "Pusher: " << name << " start time: " << start_ts << " status: " << status << " des:"  << ex.what();
+        switch (ex.getErrCode()) {
+            case Err_success: {
+                //推流成功了
+                break;
+            }
+            case Err_shutdown: {
+                //我们主动断开的,应该释放这个实例
+                break;
+            }
+            default: {
+                break;
+            }
+        }
     };
 
     //查找指定的源src local://localhost/device/src
@@ -249,7 +263,7 @@ void DeviceHelper::startTunnelPusher(const string &src) {
     }
 
     //内部Tunnel推流到mgw-server使用特殊的名字，不占用推流通道
-    addPusher(TUNNEL_PUSHER, dev->_cfg.push_addr, media_src, on_pubished, on_shutdown, netif, mtu);
+    addPusher(TUNNEL_PUSHER, dev->_cfg.push_addr, media_src, on_status_changed, netif, mtu);
 }
 
 void DeviceHelper::stopTunnelPusher() {

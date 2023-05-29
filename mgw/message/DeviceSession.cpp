@@ -78,7 +78,7 @@ void DeviceSession::setEventHandle() {
         }, false);
     });
 
-    _device_helper->setOnPlayersChange([weak_self](int players){
+    _device_helper->setOnPlayersChange([weak_self](bool local, int players){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -198,8 +198,7 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
     }
 
     const device::StartOutputStream &req = dec.messge()->startoutput();
-    int channel = req.outchn();
-    string out_name = getOutputName(false, channel);
+    string out_name = getOutputName(false, req.outchn());
     string url;
     const common::StreamAddress &addr = req.address();
     if (addr.has_rtmp()) {
@@ -215,7 +214,7 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
 
     //如果回调中需要对象的所有权，应该传入this,否则应该传入该对象的弱引用
     weak_ptr<DeviceSession> weak_self = dynamic_pointer_cast<DeviceSession>(shared_from_this());
-    auto send_status = [weak_self, req, out_name](int status, int err, int start_time){
+    auto send_status = [weak_self, out_name](const string &name, int status, int err, int start_time){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -224,7 +223,7 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
         MsgPtr msg = make_shared<mgw::MgwMsg>();
         device::OutputStreamStatus *rsp = msg->mutable_outputsta();
         rsp->set_srcchn(0);
-        rsp->set_outchn(req.outchn());
+        rsp->set_outchn(getOutputChn(name));
         rsp->set_status(status);
         rsp->set_starttime(start_time);
         rsp->set_lasterrcode(err);
@@ -236,48 +235,36 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
         NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastStreamStatus, out_name, status, start_time, err);
     };
 
-    auto on_published = [weak_self, out_name, send_status, channel, url](const string &des, ChannelStatus status, uint32_t time, int code) {
+    auto on_status_changed = [weak_self, out_name, send_status, url](const string &name, ChannelStatus status, Time_t time, const SockException &ex) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
         }
 
-        if (status == ChannelStatus_Idle || code != 0) {
-            ErrorP(strong_self.get()) << "pusher: " << out_name << " failed: " << des;
+        if (status == ChannelStatus_Idle || ex) {
+            ErrorP(strong_self.get()) << "pusher: " << out_name << " failed: " << ex.what();
+            //推流失败，说明没有办法重推了，直接关闭这个推流
+            strong_self->_device_helper->releasePusher(out_name);
         } else {
             //推流成功，发出一个推流成功事件，u727收到事件后发送通知消息
-            NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastPush, true, strong_self->_device_helper->sn(), channel, url);
+            NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastPush, true, strong_self->_device_helper->sn(), getOutputChn(name), url);
         }
         //成功与否，都要通知到device端
-        send_status((int)status, code, time);
+        send_status(name, (int)status, (int)ex.getCustomCode(), time);
     };
 
-    auto on_shutdown = [weak_self, out_name, send_status](const string &des, int err) {
-        //推流失败，说明没有办法重推了，通知直接关闭这个推流
-        InfoL << "Push failed: " << des;
+    auto push_task = [weak_self, out_name, url, on_status_changed](const MediaSource::Ptr &src) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
         }
-
-        strong_self->_device_helper->releasePusher(out_name);
-        //通知设备
-        send_status((int)ChannelStatus_Idle, err, -1);
-    };
-
-    auto push_task = [weak_self, out_name, url, on_published, on_shutdown](const MediaSource::Ptr &src) {
-        auto strong_self = weak_self.lock();
-        if (!strong_self) {
-            return;
-        }
-
         //执行推流任务
         if (src) {
-            strong_self->_device_helper->addPusher(out_name, url, src, on_published, on_shutdown);
+            strong_self->_device_helper->addPusher(out_name, url, src, on_status_changed);
         } else {
             //过了一段时间还没有等到流，通知设备，推流失败
             DebugL << "没有找到需要的源";
-            on_published("Stream Not found.", ChannelStatus_Idle, ::time(NULL), -1);
+            on_status_changed(out_name, ChannelStatus_Idle, 0, SockException(Err_timeout, "Err_timeout", -18));
         }
     };
     //异步查找流，找到了就执行推流任务

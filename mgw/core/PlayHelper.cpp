@@ -86,12 +86,14 @@ void PlayHelper::startFromNetwork(const string &url) {
         auto strong_self = weak_self.lock();
         if (!strong_self) { return; }
 
+        WarnL << "play err: " << err.what();
+
         if ((*failed_cnt) >= 0 && (*failed_cnt < strong_self->_max_retry || strong_self->_max_retry < 0)) {
             /**
              * (*failed_cnt) >= 0 说明有过成功拉流
              * _max_retry 小于0，或者failed_cnt小于_max_retry才可以重新拉流
              */
-            strong_self->rePlay(url, (*failed_cnt)++);
+            strong_self->rePlay(url, ++(*failed_cnt));
         } else {
             //发生了错误，并且没办法重新拉流了，回调通知
             strong_self->_info.stopTime = ::time(NULL);
@@ -109,6 +111,7 @@ void PlayHelper::startFromNetwork(const string &url) {
             //发生了异常
             strong_self->_info.stopTime = ::time(NULL);
             strong_self->_info.status = ChannelStatus_Idle;
+            WarnL << "on play result: " << err.what();
             do_retry(err);
         } else {
             strong_self->_timer.reset();
@@ -153,16 +156,18 @@ void PlayHelper::setDirectProxy() {
 
 void PlayHelper::rePlay(const std::string &url, int failed_cnt) {
     auto iDelay = MAX(2 * 1000, MIN(failed_cnt * 3000, 60 * 1000));
-    weak_ptr<PlayHelper> weakSelf = shared_from_this();
-    _timer = std::make_shared<Timer>(iDelay / 1000.0f, [weakSelf, url, failed_cnt]() {
+    weak_ptr<PlayHelper> weak_self = shared_from_this();
+    _timer = std::make_shared<Timer>(iDelay / 1000.0f, [weak_self, url, failed_cnt]() {
         //播放失败次数越多，则延时越长
-        auto strongPlayer = weakSelf.lock();
-        if (!strongPlayer) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
             return false;
         }
+        strong_self->_info.status = ChannelStatus_RePlaying;
+        strong_self->_info.total_retry++;
         WarnL << "重试播放[" << failed_cnt << "]:" << url;
-        strongPlayer->MediaPlayer::play(url);
-        strongPlayer->setDirectProxy();
+        strong_self->MediaPlayer::play(url);
+        strong_self->setDirectProxy();
         return false;
     }, getPoller());
 }

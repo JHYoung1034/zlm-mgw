@@ -42,9 +42,11 @@ void MessageClient::onRecv(const Buffer::Ptr &pBuf) {
 
 //被动断开连接回调，这里应该设置一个定时器去尝试重连，每次尝试等待时长应该增加
 void MessageClient::onErr(const SockException &ex) {
-    DebugL << "Connect to mgw-server onErr:" << ex.what();
-    DebugL << "Reconnect to " << get_peer_ip() << ", port:" << get_peer_port();
-    startConnect(get_peer_ip(), get_peer_port());
+    //如果不是主动关闭的，并且允许重连才去重连
+    if (_can_retry && ex.getErrCode() != Err_shutdown) {
+        DebugL << "Reconnect to " << get_peer_ip() << ", port:" << get_peer_port();
+        startConnect(get_peer_ip(), get_peer_port());
+    }
 }
 
 //tcp连接成功后每2秒触发一次该事件
@@ -55,6 +57,17 @@ void MessageClient::onManager() {
 //连接服务器结果回调,连接成功和失败都会回调
 void MessageClient::onConnect(const SockException &ex) {
     DebugL << "onConnect:" << ex.what() << "code:" << ex.getErrCode();
+    //连接成功的时候，需要发送一个sessionReq请求，相关参数我们可以从deviceHelper中获取到
+    if (!ex) {
+        auto strong_device = _device_helper.lock();
+        if (!strong_device) {
+            WarnP(this) << "No device instance!";
+            return;
+        }
+        Device::DeviceConfig cfg = strong_device->device()->getConfig();
+        sendSession(cfg.sn, cfg.type, cfg.version, cfg.vendor,
+            cfg.access_token,cfg.max_pushers, cfg.max_bitrate, cfg.max_4kbitrate);
+    }
 }
 
 //数据全部发送完毕后回调
@@ -126,6 +139,8 @@ void MessageClient::onMsg_sessionRsp(ProtoBufDec &dec) {
         } else {
             cfg.push_addr = addr.srt().simaddr();
         }
+        //config发生了变化，应该加载到设备实例中，并且通知到外部
+        strong_dev_helper->device()->loadConfig(cfg);
         strong_dev_helper->device()->doOnConfigChanged(cfg);
     }
 
@@ -133,7 +148,10 @@ void MessageClient::onMsg_sessionRsp(ProtoBufDec &dec) {
     //定时器和MessageClient在同一个线程上，避免不同线程竞争
     if (!_ka_timer) {
         weak_ptr<MessageClient> weak_self = dynamic_pointer_cast<MessageClient>(shared_from_this());
-        _ka_timer = make_shared<Timer>(10, [weak_self]()->bool {
+        if (!_ka_sec) {
+            _ka_sec = mINI::Instance()[WsCli::kPingSec];
+        }
+        _ka_timer = make_shared<Timer>((float)_ka_sec, [weak_self]()->bool {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
                 return false;

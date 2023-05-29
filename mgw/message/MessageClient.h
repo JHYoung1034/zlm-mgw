@@ -20,6 +20,9 @@ public:
     int SendMessage(const char *msg, size_t size);
     int SendMessage(const std::string &msg);
 
+    void setCanRetry(bool enable) { _can_retry = enable; }
+    void setKaSec(uint16_t sec) { _ka_sec = sec; }
+
 protected:
     void onRecv(const toolkit::Buffer::Ptr &pBuf) override;
     //被动断开连接回调
@@ -51,6 +54,8 @@ private:
     void onMsg_ServerSessionRsp(ProtoBufDec &dec);
 
 private:
+    bool _can_retry = true;
+    uint16_t _ka_sec = 0;
     uint64_t _total_bytes = 0;
     toolkit::Timer::Ptr _ka_timer = nullptr;
     //设备实例，使用弱引用，防止循环引用
