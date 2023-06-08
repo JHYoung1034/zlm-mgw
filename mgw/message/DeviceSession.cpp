@@ -235,7 +235,8 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
         NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastStreamStatus, out_name, status, start_time, err);
     };
 
-    auto on_status_changed = [weak_self, out_name, send_status, url](const string &name, ChannelStatus status, Time_t time, const SockException &ex) {
+    auto on_status_changed = [weak_self, out_name, send_status, url](const string &name,
+                    ChannelStatus status, Time_t time, const SockException &ex, void *userdata) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -260,11 +261,11 @@ void DeviceSession::onMsg_startProxyPush(ProtoBufDec &dec) {
         }
         //执行推流任务
         if (src) {
-            strong_self->_device_helper->addPusher(out_name, url, src, on_status_changed);
+            strong_self->_device_helper->addPusher(out_name, false, url, src, on_status_changed);
         } else {
             //过了一段时间还没有等到流，通知设备，推流失败
-            DebugL << "没有找到需要的源";
-            on_status_changed(out_name, ChannelStatus_Idle, 0, SockException(Err_timeout, "Err_timeout", -18));
+            WarnL << "没有找到需要的源";
+            on_status_changed(out_name, ChannelStatus_Idle, 0, SockException(Err_timeout, "Err_timeout", -18), nullptr);
         }
     };
     //异步查找流，找到了就执行推流任务
@@ -314,7 +315,7 @@ void DeviceSession::onMsg_statusReq(ProtoBufDec &dec) {
     rsp->set_chncap(max_pushers);
     rsp->set_maxbitrate(max_bitrate);
     rsp->set_maxbitrate4k(max_4kbitrate);
-    rsp->set_players(_device_helper->players());
+    rsp->set_players(_device_helper->players(true));
     rsp->set_playtotalbytes(_device_helper->playTotalBytes());
 
     _device_helper->pusher_for_each([rsp](PushHelper::Ptr pusher) {

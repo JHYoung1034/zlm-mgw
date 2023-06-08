@@ -52,7 +52,8 @@ string EventProcess::getFullUrl(const string &schema, const string &url, uint16_
 void EventProcess::run() {
     //添加监听
     static onceToken token([this] {
-        //推拉流地址鉴权
+        //推拉流地址鉴权, 如果是本地设备，也应该通过DeviceHelper::findDevice(sn) 查找到
+        //TODO: 本地设备的输入源名字也应该是[sn]_C[n]
         auto auth_token = [this](bool publish, const MediaInfo &args, string &sn)->string {
             string err("");
             sn = getSnByStreamId(args._streamid);

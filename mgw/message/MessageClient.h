@@ -12,16 +12,19 @@ namespace mediakit {
 class MessageClient : public toolkit::TcpClient, public MessageCodec {
 public:
     using Ptr = std::shared_ptr<MessageClient>;
+    using onConnectErr = std::function<void(const toolkit::SockException &e)>;
 
     MessageClient(const toolkit::EventPoller::Ptr &poller = nullptr,
                 Entity entity = Entity_Device, const DeviceHelper::Ptr &ptr = nullptr);
     ~MessageClient() override;
 
-    int SendMessage(const char *msg, size_t size);
-    int SendMessage(const std::string &msg);
+    int sendMessage(const char *msg, size_t size);
+    int sendMessage(const std::string &msg);
 
     void setCanRetry(bool enable) { _can_retry = enable; }
     void setKaSec(uint16_t sec) { _ka_sec = sec; }
+    //当连接失败时，回调到出去，外部处理重连逻辑
+    void setOnConnectErr(const onConnectErr &func);
 
 protected:
     void onRecv(const toolkit::Buffer::Ptr &pBuf) override;
@@ -60,6 +63,8 @@ private:
     toolkit::Timer::Ptr _ka_timer = nullptr;
     //设备实例，使用弱引用，防止循环引用
     std::weak_ptr<DeviceHelper> _device_helper;
+    //连接失败回调
+    onConnectErr _on_connect_err = nullptr;
 };
 
 }

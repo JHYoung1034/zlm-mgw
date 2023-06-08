@@ -237,20 +237,14 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
         string url = string("rtsp://") + string(DEFAULT_VHOST) + "/live/" + stream_id;
         info.parse(url);
 
-        auto on_play = [weak_self, on_status, stream_id](const string &des, ChannelStatus status, Time_t ts, ErrorCode err) {
+        auto on_play_status = [weak_self, on_status](const string &id, ChannelStatus status, Time_t ts, const SockException &ex) {
             //输入源播放成功与否都要返回状态给u727
-            DebugL << "play: " << des << ", start_time: " << ts;
-            // on_status(stream_id, err, des, "", "");
-        };
-
-        auto on_shutdown = [weak_self, on_status, stream_id](const string &des, ErrorCode err) {
-            //输入源播放终止了，要通知u727
-            DebugL << "play shutdown: " << des << ", err: " << err;
+            DebugL << "play[" << id << "]: " << ex.what() << ", start_time: " << ts;
             // on_status(stream_id, err, des, "", "");
         };
 
         NoticeCenter::Instance().addListener(listen_tag, Broadcast::kBroadcastNotFoundStream,
-            [weak_self, info, src_type, src_url, on_play, on_shutdown](BroadcastNotFoundStreamArgs) {
+            [weak_self, info, src_type, src_url, on_play_status](BroadcastNotFoundStreamArgs) {
 
             if (args._schema != info._schema ||
                 args._vhost != info._vhost ||
@@ -264,7 +258,7 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
             if (!strong_self) { return; }
 
             //收到未找到流事件，切换回自己的线程再处理
-            strong_self->getPoller()->async([weak_self, info, src_type, src_url, on_play, on_shutdown](){
+            strong_self->getPoller()->async([weak_self, info, src_type, src_url, on_play_status](){
                 auto strong_self = weak_self.lock();
                 if (!strong_self) { return; }
 
@@ -272,9 +266,9 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
                 if (src_type == StreamType_Play || src_type == StreamType_File) {
                     auto player = strong_self->_u727->player(info._streamid);
                     if (player->status() != ChannelStatus_Idle) {
-                        player->restart(src_url, on_play, on_shutdown, nullptr);
+                        player->restart(src_url, on_play_status, nullptr);
                     } else {
-                        player->start(src_url, on_play, on_shutdown, nullptr);
+                        player->start(src_url, on_play_status, nullptr);
                     }
                 }
             }, false);
@@ -283,7 +277,8 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //输出任务
-    auto on_status_changed = [weak_self, stream_id, on_status](const string &name, ChannelStatus status, Time_t start_ts, const SockException &ex) {
+    auto on_push_status = [weak_self, stream_id, on_status](const string &name,
+                ChannelStatus status, Time_t start_ts, const SockException &ex, void *userdata) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -296,7 +291,7 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
         on_status(stream_id, ex.getCustomCode(), ex.what(), push_url, play_url);
     };
 
-    auto do_output_task = [listen_tag, weak_self, stream_id, dest_type, dest_url, device, on_status_changed, info](const MediaSource::Ptr &src) {
+    auto do_output_task = [listen_tag, weak_self, stream_id, dest_type, dest_url, device, on_push_status, info](const MediaSource::Ptr &src) {
         //不管有没有找到流，这一次监听的时间先删除监听
         NoticeCenter::Instance().delListener(listen_tag, Broadcast::kBroadcastNotFoundStream);
         auto strong_self = weak_self.lock();
@@ -319,14 +314,14 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
 
                 if (pusher->status() != ChannelStatus_Idle) {
                     WarnL << "Already exist, release the old and create a new: " << stream_id;
-                    pusher->restart(dest_url, on_status_changed, src);
+                    pusher->restart(dest_url, on_push_status, src);
                 } else {
-                    pusher->start(dest_url, on_status_changed, 15, src);
+                    pusher->start(dest_url, on_push_status, 15, src);
                 }
             } else if (dest_type == StreamType_Play) {
                 //需要根据stream_id生成拉流地址，返回给u727
                 DebugL << "需要根据stream_id生成拉流地址";
-                on_status_changed(stream_id, ChannelStatus_Idle, ::time(NULL), SockException());
+                on_push_status(stream_id, ChannelStatus_Idle, ::time(NULL), SockException(), NULL);
             } else if (dest_type == StreamType_File) {
                 //需要生成录像文件到指定路径
                 DebugL << "需要生成录像文件到指定路径: " << dest_url;
@@ -337,7 +332,7 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
         } else {
             //过了一段时间还没有等到流，通知设备，推流失败
             DebugL << "没有找到需要的源: " << info.getUrl();
-            on_status_changed(stream_id, ChannelStatus_Idle, ::time(NULL), SockException(Err_timeout, "Stream notfound", Common_Failed));
+            on_push_status(stream_id, ChannelStatus_Idle, ::time(NULL), SockException(Err_timeout, "Stream notfound", Common_Failed), NULL);
         }
     };
     //异步查找流，找到了就执行推流任务

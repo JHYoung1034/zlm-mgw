@@ -31,7 +31,7 @@ public:
     using onPlayersChanged = std::function<void(bool/*local*/, int/*players*/)>;
     using onNotFoundStream = std::function<void(const std::string &)>;
     using onConfigChanged = std::function<void(const DeviceConfig &)>;
-    using onStatusChanged = std::function<void(ChannelType, ChannelId, ChannelStatus, ErrorCode, Time_t)>;
+    using onStatusChanged = std::function<void(ChannelType, ChannelId, ChannelStatus, ErrorCode, Time_t, void *)>;
 
     friend class DeviceHelper;
 
@@ -68,6 +68,7 @@ public:
     //创建一个设备后，需要调用此函数加载设备信息。
     void loadConfig(const DeviceConfig &cfg);
     DeviceConfig getConfig() { return _cfg; }
+    void updateToken(const std::string &token) { _cfg.access_token = token; }
 
     //设置设备消息和流是否活跃
     bool alive();
@@ -75,7 +76,7 @@ public:
     bool messageAlive();
     void setAlive(bool message, bool alive);
     //查询不同协议的播放数
-    uint32_t players(const std::string &schema);
+    uint32_t players(bool local, const std::string &schema);
     //生成推流地址和播放地址，url合法性校验
     std::string getPushaddr(uint32_t chn, const std::string &schema);
     std::string getPlayaddr(uint32_t chn, const std::string &schema);
@@ -90,7 +91,7 @@ public:
         }
     }
     void doOnPlayersChange(bool local, int players) {
-        _total_players = players;
+        local ? (_local_players = players) : (_remote_players = players);
         if (_on_players_changed) {
             _on_players_changed(local, players);
         }
@@ -108,7 +109,14 @@ public:
     void doOnStatusChanged(ChannelType type, ChannelId chn,
                 ChannelStatus sta, ErrorCode code, Time_t ts) {
         if (_on_status_changed) {
-            _on_status_changed(type, chn, sta, code, ts);
+            //当服务器的推流状态变化时，发送消息到设备端，设备端ws_client会调用这个回调
+            //需要查找出对应的pusher实例，提取user_data，再通知到设备业务处理，一般是remote output
+            void *userdata = nullptr;
+            if (type == ChannelType_ProxyOutput) {
+                auto pusher = _pusher_map[getOutputName(true, chn)];
+                userdata = pusher->getInfo().userdata;
+            }
+            _on_status_changed(type, chn, sta, code, ts, userdata);
         }
     }
     ////////////////////////////////////////////
@@ -144,7 +152,8 @@ private:
 
     //收到该设备流的消费者变化时，记录在此，在状态同步时下发给设备
     //由于收到消费者变化的消息是由其他线程调用，因此该变量使用原子操作。
-    std::atomic<uint32_t> _total_players = {0};
+    std::atomic<uint32_t> _local_players = {0};
+    std::atomic<uint32_t> _remote_players = {0};
 
     //流量统计，应该跟随设备实例生命周期，累计统计，不能出现反转
     TrafficsStatistics::Ptr _tra_sta = nullptr;
@@ -177,18 +186,26 @@ public:
     Device::Ptr &device();
     void releaseDevice();
 
-    void addPusher(const std::string &name, const std::string &url, MediaSource::Ptr src,
-                    PushHelper::onStatusChanged on_status_changed,
-                    const std::string &netif = "default", uint16_t mtu = 1500);
+    //推流
+    void addPusher(const std::string &name, bool remote, const std::string &url,
+                    MediaSource::Ptr src, PushHelper::onStatusChanged on_status_changed,
+                    const std::string &netif = "default", uint16_t mtu = 1500, void *userdata = nullptr);
     void releasePusher(const std::string &name);
     bool hasPusher(const std::string &name);
+    const PushHelper::Ptr &getPusher(const std::string &name);
+    //拉流
+    void addPlayer(const std::string &name, const std::string &url,
+                PlayHelper::onStatusChanged on_status, PlayHelper::onData on_data,
+                const std::string &netif = "default", uint16_t mtu = 1500);
+    void releasePlayer(const std::string &name);
+    bool hasPlayer(const std::string &name);
     //使用mgw-server下发的地址开启tunnel推流
-    void startTunnelPusher(const std::string &src);
+    void startTunnelPusher(const MediaSource::Ptr &media_src);
     void stopTunnelPusher();
     //遍历所有的推流
     void pusher_for_each(std::function<void(PushHelper::Ptr)> func);
     //返回当前有多少播放数量
-    size_t players();
+    size_t players(bool local);
     //返回播放发送了多少流量
     uint64_t playTotalBytes();
     //返回推流发送了多少流量

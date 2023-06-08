@@ -74,7 +74,9 @@ generate_export_header(mk_api
   STATIC_DEFINE MediaKitApi_STATIC
   EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/mk_export.h")
 
-add_subdirectory(tests)
+if(NOT CROSS_3RD_PATH)
+  add_subdirectory(tests)
+endif()
 
 file(GLOB API_HEADER_LIST include/*.h ${CMAKE_CURRENT_BINARY_DIR}/*.h)
 install(FILES ${API_HEADER_LIST}

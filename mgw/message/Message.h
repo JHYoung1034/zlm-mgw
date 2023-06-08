@@ -94,7 +94,7 @@ public:
     uint8_t    _version;      //must be 2
     uint8_t    _headerSize;   //include the sub header length
     uint16_t    _payloadSize;
-    uint32_t    _msgSeq;
+    uint32_t    _msgSeq;    //发送方的发送的消息序号，每个消息+1
 
     uint8_t     _protoType;     //PayloadType_Protobuf
     uint8_t     _senderPid;     //Entity
@@ -110,7 +110,7 @@ public:
     uint8_t    _needAck:1;
     uint8_t    _haveSubProto:1;
 #endif
-    uint32_t    _ackSeq;
+    uint32_t    _ackSeq;        //指定回复某一条消息，一般是上次接收到到的消息序号
     uint32_t    _sessionId;
     /** extend header */
     // uint8_t     _subPtotoType;

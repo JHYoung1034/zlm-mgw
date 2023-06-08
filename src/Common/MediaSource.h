@@ -382,7 +382,7 @@ public:
     static Ptr find(const std::string &vhost, const std::string &app, const std::string &stream_id, bool from_mp4 = false);
 
     // 异步查找流
-    static void findAsync(const MediaInfo &info, const std::shared_ptr<toolkit::Session> &session, const std::function<void(const Ptr &src)> &cb);
+    static void findAsync(const MediaInfo &info, const std::shared_ptr<toolkit::SocketHelper> &session, const std::function<void(const Ptr &src)> &cb);
     // 遍历所有流
     static void for_each_media(const std::function<void(const Ptr &src)> &cb, const std::string &schema = "", const std::string &vhost = "", const std::string &app = "", const std::string &stream = "");
     // 从mp4文件生成MediaSource

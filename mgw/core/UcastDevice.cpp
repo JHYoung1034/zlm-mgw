@@ -46,7 +46,7 @@ void Device::releasePusher(const string &name) {
 PlayHelper::Ptr &Device::player(const string &name) {
     auto &player = _player_map[name];
     if (!player.operator bool()) {
-        player = make_shared<PlayHelper>(getSourceChn(name), 10);
+        player = make_shared<PlayHelper>(name, getSourceChn(name), 10);
     }
     return player;
 }
@@ -81,8 +81,8 @@ bool Device::streamAlive() {
 }
 
 //查询不同协议的播放数
-uint32_t Device::players(const string &schema) {
-    return _total_players.load();
+uint32_t Device::players(bool local, const string &schema) {
+    return local ? _local_players.load() : _remote_players.load();
 }
 
 string Device::getPushaddr(uint32_t chn, const string &schema) {
@@ -143,6 +143,11 @@ string Device::getPlayaddr(uint32_t chn, const string &schema) {
 
 bool Device::availableAddr(const string &url) {
     bool result = false;
+    GET_CONFIG(uint32_t, max_players, Mgw::kMaxPlayers);
+    if (_local_players >= max_players) {
+        return result;
+    }
+
     if (url.substr(0, 7) == "rtmp://") {
         result = _auth.availableRtmpAddr(url);
     } else if (url.substr(0, 6) == "srt://") {
@@ -190,21 +195,35 @@ void DeviceHelper::releaseDevice() {
         _device_map.erase(_sn);
 }
 
-void DeviceHelper::addPusher(const string &name, const string &url, MediaSource::Ptr src,
-                    PushHelper::onStatusChanged on_status_changed, const string &netif, uint16_t mtu) {
+void DeviceHelper::addPusher(const string &name, bool remote, const string &url,
+                            MediaSource::Ptr src,PushHelper::onStatusChanged on_status_changed,
+                            const string &netif, uint16_t mtu, void *userdata) {
     GET_CONFIG(int, max_retry, Mgw::kMaxRetry);
     auto dev = device();
     auto pusher = dev->pusher(name);
-    if (pusher->status() != ChannelStatus_Idle) {
-        //如果是tunnel pusher，不能手动中断去重推，否则会影响已存在的代理推流
-        if (name == TUNNEL_PUSHER) {
-            return;
-        }
+    //如果是本地推流，直接启动推流
+    if (!remote) {
+        if (pusher->status() != ChannelStatus_Idle) {
+            //如果是tunnel pusher，不能手动中断去重推，否则会影响已存在的代理推流
+            if (name == TUNNEL_PUSHER) {
+                return;
+            }
 
-        WarnL << "Already exist, release the old and create a new: " << name;
-        pusher->restart(url, on_status_changed, src, netif, mtu);
+            WarnL << "Already exist, release the old and create a new: " << name;
+            pusher->restart(url, on_status_changed, src, netif, mtu, userdata);
+        } else {
+            pusher->start(url, on_status_changed, max_retry, src, netif, mtu, userdata);
+        }
     } else {
-        pusher->start(url, on_status_changed, max_retry, src, netif, mtu);
+        StreamInfo info;
+        info.channel = getOutputChn(name);
+        info.id = name;
+        info.remote = remote;
+        info.startTime = ::time(NULL);
+        info.url = url;
+        info.userdata = userdata;
+
+        pusher->updateInfo(info);
     }
 }
 
@@ -212,12 +231,22 @@ void DeviceHelper::releasePusher(const string &name) {
     device()->releasePusher(name);
 }
 
-bool DeviceHelper::hasPusher(const std::string &name) {
+bool DeviceHelper::hasPusher(const string &name) {
     auto dev = device();
     return dev->_pusher_map.find(name) != dev->_pusher_map.end();
 }
 
-void DeviceHelper::startTunnelPusher(const string &src) {
+const PushHelper::Ptr &DeviceHelper::getPusher(const string &name) {
+    auto dev = device();
+    auto pusher = dev->_pusher_map.find(name);
+    if (pusher != dev->_pusher_map.end()) {
+        return pusher->second;
+    }
+
+    return nullptr;
+}
+
+void DeviceHelper::startTunnelPusher(const MediaSource::Ptr &media_src) {
     //检查一下内部推流到mgw-server的地址是否存在
     auto dev = device();
     if (dev->_cfg.push_addr.empty()) {
@@ -237,7 +266,7 @@ void DeviceHelper::startTunnelPusher(const string &src) {
     }
 
     auto on_status_changed = [](const string &name, ChannelStatus status,
-                                Time_t start_ts, const SockException &ex){
+                                Time_t start_ts, const SockException &ex, void *userdata){
         DebugL << "Pusher: " << name << " start time: " << start_ts << " status: " << status << " des:"  << ex.what();
         switch (ex.getErrCode()) {
             case Err_success: {
@@ -254,16 +283,8 @@ void DeviceHelper::startTunnelPusher(const string &src) {
         }
     };
 
-    //查找指定的源src local://localhost/device/src
-    MediaInfo info(string(DEFAULT_LOCAL_INPUT) + src);
-    auto media_src = MediaSource::find(info);
-    if (!media_src) {
-        WarnL << "没有找到本地输入流:[" << src << "]";
-        return;
-    }
-
     //内部Tunnel推流到mgw-server使用特殊的名字，不占用推流通道
-    addPusher(TUNNEL_PUSHER, dev->_cfg.push_addr, media_src, on_status_changed, netif, mtu);
+    addPusher(TUNNEL_PUSHER, false, dev->_cfg.push_addr, media_src, on_status_changed, netif, mtu);
 }
 
 void DeviceHelper::stopTunnelPusher() {
@@ -271,13 +292,27 @@ void DeviceHelper::stopTunnelPusher() {
     releasePusher(TUNNEL_PUSHER);
 }
 
+void DeviceHelper::addPlayer(const string &name, const string &url,
+                    PlayHelper::onStatusChanged on_status, PlayHelper::onData on_data,
+                    const string &netif, uint16_t mtu) {
+
+}
+
+void DeviceHelper::releasePlayer(const string &name) {
+
+}
+
+bool DeviceHelper::hasPlayer(const string &name) {
+    return false;
+}
+
 void DeviceHelper::pusher_for_each(function<void(PushHelper::Ptr)> func) {
     device()->pusher_for_each(func);
 }
 
 //返回当前有多少播放数量
-size_t DeviceHelper::players() {
-    return (size_t)device()->players("");
+size_t DeviceHelper::players(bool local) {
+    return (size_t)device()->players(local, "");
 }
 
 //返回播放发送了多少流量

@@ -137,7 +137,7 @@ static onceToken token([]() {
     mINI::Instance()[kEnableRtmp] = 1;
     mINI::Instance()[kEnableTS] = 1;
     mINI::Instance()[kEnableFMP4] = 1;
-    mINI::Instance()[kEnableDmsp] = 1;
+    mINI::Instance()[kEnableDmsp] = 0;
 
     mINI::Instance()[kMP4AsPlayer] = 0;
     mINI::Instance()[kMP4MaxSecond] = 3600;

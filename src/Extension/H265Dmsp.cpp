@@ -18,7 +18,7 @@ void H265DmspDecoder::onGetH265(const char *pcData, size_t iLen, uint32_t dts,ui
 }
 
 H265Frame::Ptr H265DmspDecoder::obtainFrame() {
-
+    return nullptr;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

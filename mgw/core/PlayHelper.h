@@ -16,15 +16,18 @@ class PlayHelper : public MediaPlayer, public MediaSourceEvent, public std::enab
 public:
     using Ptr = std::shared_ptr<PlayHelper>;
 
-    using onPlay        = std::function<void (const std::string&/*description*/, ChannelStatus, Time_t, ErrorCode)>;
-    using onShutdown    = std::function<void (const std::string&/*description*/, ErrorCode)>;
-    using onData        = std::function<void (mgw_packet *)>;
+    //根据业务需求，在推流状态发生变化时都应该通知(正在推流，正在重连，推流失败)，简化为一个function,需要包含通道名
+    /** name, status, start_time, exception */
+    /** player 和 pusher 的一些业务特性相同，后续要抽象出来统一处理 */
+    using onStatusChanged = std::function<void(const std::string&,
+                    ChannelStatus,Time_t, const toolkit::SockException &)>;
+    /** id, data, size, dts, pts, keyframe */
+    using onData = std::function<void (CodecId, const char*, uint32_t, uint64_t, uint64_t, bool)>;
 
     /// @brief 创建一个播放器
     /// @param chn 播放器所属通道
     /// @param max_retry max_retry=-1 时表示永久尝试拉流，如果是从录像文件输入，一直循环播放
-    PlayHelper(int chn, int max_retry);
-    PlayHelper(const std::string &stream_id, int max_retry);
+    PlayHelper(const std::string &name, int chn = -1, int max_retry = -1);
     ~PlayHelper();
 
     /// @brief 从指定的网卡拉流，此接口仅仅在播放网络流之前设置才有效
@@ -34,11 +37,10 @@ public:
 
     /// @brief 启动播放器
     /// @param url 网络url或者本地录像文件路径
-    /// @param on_play 播放结果回调
-    /// @param on_shutdown 播放停止回调
+    /// @param on_status_changed 播放状态变化回调
     /// @param on_data 播放帧数据回调
-    void start(const std::string &url, onPlay on_play, onShutdown on_shutdown, onData on_data);
-    void restart(const std::string &url, onPlay on_play, onShutdown on_shutdown, onData on_data);
+    void start(const std::string &url, onStatusChanged on_status_changed, onData on_data);
+    void restart(const std::string &url, onStatusChanged on_status_changed, onData on_data);
 
     /**
      * 获取观看总人数
@@ -76,10 +78,8 @@ private:
     std::string _stream_id;
     //失败最多重连次数
     int _max_retry;
-    //开始播放，结果回调
-    onPlay      _on_play;
-    //收到播放终止回调
-    onShutdown  _on_shutdown;
+    //播放状态回调
+    onStatusChanged _on_status_changed;
     //收到数据帧的时候，回调到外部
     onData      _on_data;
     //播放器流信息
@@ -95,7 +95,7 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////////////
-//此类用于摄取播放器帧数据后回调音视频frame给外部
+//此类用于摄取播放器帧数据
 class FrameIngest : public FrameWriterInterface, public std::enable_shared_from_this<FrameIngest> {
 public:
     using Ptr = std::shared_ptr<FrameIngest>;

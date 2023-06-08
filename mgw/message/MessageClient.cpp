@@ -6,10 +6,11 @@
 
 using namespace std;
 using namespace toolkit;
-using namespace mediakit;
+
+namespace mediakit {
 
 MessageClient::MessageClient(const EventPoller::Ptr &poller,
-            Entity entity, const DeviceHelper::Ptr &ptr)
+        Entity entity, const DeviceHelper::Ptr &ptr)
         : MessageCodec(entity) {
     setPoller(poller ? move(poller) : EventPollerPool::Instance().getPoller());
     if (entity == Entity_Device) {
@@ -18,19 +19,17 @@ MessageClient::MessageClient(const EventPoller::Ptr &poller,
 }
 
 MessageClient::~MessageClient() {
-
+    DebugP(this) << "release message client";
 }
 
 //发送消息，先保存在缓存中
-int MessageClient::SendMessage(const char *msg, size_t size) {
+int MessageClient::sendMessage(const char *msg, size_t size) {
     SockSender::send(msg, size);
-    DebugL << "Send: "<< msg << " to mgw-server";
     return 0;
 }
 
-int MessageClient::SendMessage(const string &msg) {
+int MessageClient::sendMessage(const string &msg) {
     SockSender::send(msg);
-    DebugL << "Send: "<< msg << " to mgw-server";
     return 0;
 }
 
@@ -40,12 +39,15 @@ void MessageClient::onRecv(const Buffer::Ptr &pBuf) {
     onParseMessage(pBuf->data(), pBuf->size());
 }
 
+void MessageClient::setOnConnectErr(const onConnectErr &func) {
+    _on_connect_err = func;
+}
+
 //被动断开连接回调，这里应该设置一个定时器去尝试重连，每次尝试等待时长应该增加
 void MessageClient::onErr(const SockException &ex) {
-    //如果不是主动关闭的，并且允许重连才去重连
-    if (_can_retry && ex.getErrCode() != Err_shutdown) {
-        DebugL << "Reconnect to " << get_peer_ip() << ", port:" << get_peer_port();
-        startConnect(get_peer_ip(), get_peer_port());
+    //应该回调到上层，做重连或者销毁处理
+    if (_on_connect_err) {
+        _on_connect_err(ex);
     }
 }
 
@@ -56,7 +58,6 @@ void MessageClient::onManager() {
 
 //连接服务器结果回调,连接成功和失败都会回调
 void MessageClient::onConnect(const SockException &ex) {
-    DebugL << "onConnect:" << ex.what() << "code:" << ex.getErrCode();
     //连接成功的时候，需要发送一个sessionReq请求，相关参数我们可以从deviceHelper中获取到
     if (!ex) {
         auto strong_device = _device_helper.lock();
@@ -67,6 +68,10 @@ void MessageClient::onConnect(const SockException &ex) {
         Device::DeviceConfig cfg = strong_device->device()->getConfig();
         sendSession(cfg.sn, cfg.type, cfg.version, cfg.vendor,
             cfg.access_token,cfg.max_pushers, cfg.max_bitrate, cfg.max_4kbitrate);
+    } else {
+        if (_on_connect_err) {
+            _on_connect_err(ex);
+        }
     }
 }
 
@@ -84,7 +89,7 @@ void MessageClient::onMessage(MessagePacket::Ptr msg_pkt) {
 }
 
 void MessageClient::onSendRawData(toolkit::Buffer::Ptr buffer) {
-    SendMessage(buffer->data(), buffer->size());
+    sendMessage(buffer->data(), buffer->size());
 }
 
 void MessageClient::onProcessCmd(ProtoBufDec &dec) {
@@ -189,17 +194,48 @@ void MessageClient::onMsg_outputStatus(ProtoBufDec &dec) {
 }
 
 void MessageClient::onMsg_statusRsp(ProtoBufDec &dec) {
+    // DebugP(this) << "onMsg_statusRsp: " << dec.toString();
     //状态同步回复，如果有已经停止了的流，应该释放
+    auto strong_dev_helper = _device_helper.lock();
+    if (!strong_dev_helper) {
+        WarnP(this) << "No device!";
+        return;
+    }
 
+    const device::SyncStatusRsp &rsp = dec.messge()->syncrsp();
+    for (int i = 0; i < rsp.streaminfos_size(); i++) {
+        const device::StreamInfo &info = rsp.streaminfos(i);
+
+        strong_dev_helper->device()->doOnStatusChanged(ChannelType_ProxyOutput,
+                                info.channel(), ChannelStatus(info.status()),
+                                Success, info.starttime());
+    }
+
+    strong_dev_helper->device()->doOnPlayersChange(false, rsp.players());
 }
 
 void MessageClient::onMsg_startTunnelPush(ProtoBufDec &dec) {
     //调用设备实例，开启一个推流到指定地址，一般是mgw-server
     const device::PushStreamReq &req = dec.messge()->pushstreamreq();
-    auto strong_dev_helper = _device_helper.lock();
-    if (strong_dev_helper) {
-        strong_dev_helper->startTunnelPusher(getSourceName(false, req.chn()));
-    }
+
+    weak_ptr<MessageClient> weak_self = dynamic_pointer_cast<MessageClient>(shared_from_this());
+    auto on_register = [weak_self](const MediaSource::Ptr &src){
+        auto strong_self = weak_self.lock();
+        if (!strong_self) { return; }
+
+        auto strong_dev_helper = strong_self->_device_helper.lock();
+        if (strong_dev_helper) {
+            strong_dev_helper->startTunnelPusher(src);
+        }
+    };
+
+    GET_CONFIG(string, schema, Mgw::kStreamTunnel);
+    ostringstream oss;
+    oss << schema << "://" << DEFAULT_VHOST << "/live/" << getSourceName(false, req.chn());
+    DebugL << "Tunnel source url: " << oss.str();
+
+    MediaInfo info(oss.str());
+    MediaSource::findAsync(info, shared_from_this(), on_register);
 }
 
 void MessageClient::omMsg_stopTunnelPush(ProtoBufDec &dec) {
@@ -243,7 +279,7 @@ void MessageClient::onMsg_ServerSessionRsp(ProtoBufDec &dec) {
                 rsp->set_chncap(cfg.max_pushers);
                 rsp->set_maxbitrate(cfg.max_bitrate);
                 rsp->set_maxbitrate4k(cfg.max_4kbitrate);
-                rsp->set_players(device->players(""));
+                rsp->set_players(device->players(true, "") + device->players(false, ""));
                 //TODO:获取设备总共播放服务流量，待实现
                 rsp->set_playtotalbytes(0);
 
@@ -275,4 +311,6 @@ void MessageClient::onMsg_ServerSessionRsp(ProtoBufDec &dec) {
             return true;
         }, getPoller());
     }
+}
+
 }

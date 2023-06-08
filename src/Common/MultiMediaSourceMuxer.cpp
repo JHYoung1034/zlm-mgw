@@ -118,7 +118,7 @@ MultiMediaSourceMuxer::MultiMediaSourceMuxer(const string &vhost, const string &
         _fmp4 = std::make_shared<FMP4MediaSourceMuxer>(vhost, app, stream, option);
     }
 #endif
-    DebugL << "enbale_dmsp: " << option.enable_dmsp;
+
     if (option.enable_dmsp) {
         _dmsp = std::make_shared<DmspMediaSourceMuxer>(vhost, app, stream, option);
     }

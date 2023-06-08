@@ -2,8 +2,6 @@
 #define __MGW_DEFINES_H__
 
 #define TUNNEL_PUSHER "TunnelPuhser"
-#define DEFAULT_LOCAL_INPUT "local://localhost/device/"
-
 #define SHORT_SN_LEN    8
 
 #include <inttypes.h>
@@ -75,12 +73,14 @@ enum ErrorCode {
 };
 
 struct StreamInfo {
+    bool remote;
     uint32_t channel;
     uint32_t startTime;
     uint32_t stopTime;
     uint32_t total_retry;
     ChannelStatus status;
     uint64_t totalByteSnd;
+    void *userdata;
     std::string url;
     std::string id;
 };

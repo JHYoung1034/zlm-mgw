@@ -16,12 +16,17 @@ PushHelper::~PushHelper() {
     if (_pusher && _info.status != ChannelStatus_Idle) {
         _pusher->teardown();
     }
+    if (_info.userdata) {
+        free(_info.userdata);
+    }
 }
 
-void PushHelper::start(const string &url, onStatusChanged on_status_changed, int max_retry,
-                        const MediaSource::Ptr &src, const string &netif, uint16_t mtu) {
+void PushHelper::start(const string &url, onStatusChanged on_status_changed,
+                        int max_retry, const MediaSource::Ptr &src,
+                        const string &netif,uint16_t mtu, void *userdata) {
     _retry_count = max_retry;
     _info.url = url;
+    _info.userdata = userdata;
     _wek_src = src;
     _netif = netif;
     _mtu = mtu;
@@ -38,6 +43,10 @@ void PushHelper::start(const string &url, onStatusChanged on_status_changed, int
         if (!strong_self) {
             return;
         }
+        if (ex && ex.getErrCode() == Err_shutdown) {
+            return;
+        }
+
         //推流中断，会触发这个回调，如果不是主动停止的
         //此时应该尝试重推，并且回调到外层给设备发送正在重连通知
         auto src = strong_self->_wek_src.lock();
@@ -53,7 +62,8 @@ void PushHelper::start(const string &url, onStatusChanged on_status_changed, int
             strong_self->_info.status = ChannelStatus_Idle;
             if (strong_self->_on_status_changed) {
                 strong_self->_on_status_changed(strong_self->_info.id,
-                        strong_self->_info.status, strong_self->_info.startTime, ex);
+                        strong_self->_info.status, strong_self->_info.startTime,
+                        ex, strong_self->_info.userdata);
             }
         }
     };
@@ -80,7 +90,8 @@ void PushHelper::start(const string &url, onStatusChanged on_status_changed, int
         //返回推流结果，可能是失败的，可能是成功的
         if (strong_self->_on_status_changed) {
             strong_self->_on_status_changed(strong_self->_info.id,
-                        strong_self->_info.status, strong_self->_info.startTime, ex);
+                        strong_self->_info.status, strong_self->_info.startTime,
+                        ex, strong_self->_info.userdata);
         }
     });
 
@@ -91,11 +102,12 @@ void PushHelper::start(const string &url, onStatusChanged on_status_changed, int
 
 //对于正在推流的通道，如果有新的推流，释放原来的推流，建立一个新的推流
 void PushHelper::restart(const string &url, onStatusChanged on_status_changed,
-                        const MediaSource::Ptr &src, const string &netif, uint16_t mtu) {
+                        const MediaSource::Ptr &src, const string &netif,
+                        uint16_t mtu, void *userdata) {
     if (_pusher && _info.status != ChannelStatus_Idle) {
         _pusher->teardown();
     }
-    start(url, on_status_changed, _retry_count, src, netif, mtu);
+    start(url, on_status_changed, _retry_count, src, netif, mtu, userdata);
 }
 
 void PushHelper::rePublish(const std::string &url, int failed_cnt) {
@@ -105,7 +117,7 @@ void PushHelper::rePublish(const std::string &url, int failed_cnt) {
     _info.status = ChannelStatus_RePushing;
     _info.total_retry++;
     if (_on_status_changed) {
-        _on_status_changed(_info.id, _info.status, _info.startTime, SockException());
+        _on_status_changed(_info.id, _info.status, _info.startTime, SockException(), _info.userdata);
     }
     _timer = std::make_shared<Timer>(delay / 1000.0f, [weak_self, url, failed_cnt]() {
         //推流失败次数越多，则延时越长
@@ -117,6 +129,10 @@ void PushHelper::rePublish(const std::string &url, int failed_cnt) {
         strong_self->_pusher->publish(url);
         return false;
     }, _pusher->getPoller());
+}
+
+void PushHelper::updateInfo(const StreamInfo info) {
+    _info = info;
 }
 
 }

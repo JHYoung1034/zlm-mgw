@@ -56,7 +56,7 @@ void MessageCodec::onParseMessage(const char *data, size_t size) {
     }
 
     if (_peer_entity != header->_senderPid) {
-        WarnL << "Peer Entity changed: " << _peer_entity << "->" << header->_senderPid;
+        WarnL << "Peer Entity changed: " << _peer_entity << "->" << int(header->_senderPid);
         _peer_entity = (Entity)header->_senderPid;
     }
 
@@ -88,7 +88,7 @@ void MessageCodec::getHeader(MsgHeader &header, uint32_t payload_size, bool need
     header._haveSubProto = have_sub;
     header._needAck     = need_ack;
     header._encryptType = _encrypt_type;
-    header._ackSeq      = htonl(need_ack ? ++_last_rcv_seq : 0);
+    header._ackSeq      = htonl(need_ack ? _last_rcv_seq : 0);
     header._sessionId   = htonl(_session_id);
 }
 

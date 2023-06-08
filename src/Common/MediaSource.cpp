@@ -426,7 +426,7 @@ static MediaSource::Ptr find_l(const string &schema, const string &vhost_in, con
     return ret;
 }
 
-static void findAsync_l(const MediaInfo &info, const std::shared_ptr<Session> &session, bool retry,
+static void findAsync_l(const MediaInfo &info, const std::shared_ptr<SocketHelper> &session, bool retry,
                         const function<void(const MediaSource::Ptr &src)> &cb){
     auto src = find_l(info._schema, info._vhost, info._app, info._streamid, true);
     if (src || !retry) {
@@ -460,7 +460,7 @@ static void findAsync_l(const MediaInfo &info, const std::shared_ptr<Session> &s
         NoticeCenter::Instance().delListener(listener_tag, Broadcast::kBroadcastMediaChanged);
     };
 
-    weak_ptr<Session> weak_session = session;
+    weak_ptr<SocketHelper> weak_session = session;
     auto on_register = [weak_session, info, cb_once, cancel_all, poller](BroadcastMediaChangedArgs) {
         if (!bRegist ||
             sender.getSchema() != info._schema ||
@@ -496,7 +496,7 @@ static void findAsync_l(const MediaInfo &info, const std::shared_ptr<Session> &s
     NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastNotFoundStream, info, static_cast<SockInfo &>(*session), close_player);
 }
 
-void MediaSource::findAsync(const MediaInfo &info, const std::shared_ptr<Session> &session, const function<void (const Ptr &)> &cb) {
+void MediaSource::findAsync(const MediaInfo &info, const std::shared_ptr<SocketHelper> &session, const function<void (const Ptr &)> &cb) {
     return findAsync_l(info, session, true, cb);
 }
 

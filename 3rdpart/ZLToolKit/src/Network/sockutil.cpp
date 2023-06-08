@@ -499,7 +499,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *n
             }
         }
     }
-
+    //如果是非阻塞的的socket，connect连接会立即返回，若返回值非0，获取一下errno是不是EAGAIN,不是的话就是失败了
     if (::connect(sockfd, (sockaddr *) &addr, get_sock_len((sockaddr *)&addr)) == 0) {
         //同步连接成功
         return sockfd;

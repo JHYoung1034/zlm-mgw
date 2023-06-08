@@ -35,9 +35,9 @@ namespace mediakit {
 
 //请遵循MIT协议，勿修改服务器声明
 #if !defined(ENABLE_VERSION)
-const char kServerName[] =  "ZLMediaKit-7.0(build in " __DATE__ " " __TIME__ ")";
+const char kServerName[] =  "Ucast Mgw-Server Base on ZLMediaKit-7.0(build in " __DATE__ " " __TIME__ ")";
 #else
-const char kServerName[] = "ZLMediaKit(git hash:" COMMIT_HASH "/" COMMIT_TIME ",branch:" BRANCH_NAME ",build time:" BUILD_TIME ")";
+const char kServerName[] = "Ucast Mgw-Server Base on ZLMediaKit(git hash:" COMMIT_HASH "/" COMMIT_TIME ",branch:" BRANCH_NAME ",build time:" BUILD_TIME ")";
 #endif
 
 }//namespace mediakit

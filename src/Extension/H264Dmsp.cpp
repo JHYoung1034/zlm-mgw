@@ -27,6 +27,7 @@ void H264DmspDecoder::onGetH264(const char *data, size_t len, uint32_t dts, uint
 
 H264Frame::Ptr H264DmspDecoder::obtainFrame() {
 
+    return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////

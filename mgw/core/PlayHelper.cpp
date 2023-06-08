@@ -12,27 +12,17 @@ using namespace toolkit;
 
 namespace mediakit {
 
-PlayHelper::PlayHelper(int chn, int max_retry) {
-    _info.channel = chn;
+PlayHelper::PlayHelper(const string &name, int chn, int max_retry) {
+    _info.channel = chn == -1 ? getOutputChn(name) : chn;
     _max_retry = max_retry;
-
-    ostringstream oss;
-    oss << "U727_IC"  << chn;
-    _info.id = oss.str();
-}
-
-PlayHelper::PlayHelper(const string &stream_id, int max_retry) {
-    _info.channel = 0;
-    _max_retry = max_retry;
-    _stream_id = stream_id;
-    _info.id = stream_id;
+    _stream_id = _info.id = name;
 }
 
 PlayHelper::~PlayHelper() {
     _timer.reset();
-    if (_on_play) {
-        _on_play(_info.url, ChannelStatus_Idle, ::time(NULL), Success);
-        _on_play = nullptr;
+    if (_on_status_changed) {
+        _on_status_changed(_info.id, ChannelStatus_Idle, ::time(NULL), SockException());
+        _on_status_changed = nullptr;
     }
 }
 
@@ -40,15 +30,15 @@ void PlayHelper::setNetif(const string &netif, uint16_t mtu) {
     MediaPlayer::setNetif(netif, mtu);
 }
 
-void PlayHelper::start(const string &url, onPlay on_play, onShutdown on_shutdown, onData on_data) {
+void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onData on_data) {
     _info.url = url;
-    _on_play = on_play;
-    _on_shutdown = on_shutdown;
+    _on_status_changed = on_status_changed;
     _on_data = on_data;
     _info.startTime = ::time(NULL);
 
     if (_stream_id.empty()) {
-        _stream_id = FindField(url.data(), url.substr(url.rfind('/')+1).data(), NULL);
+        //创建实例的时候没有穿id，url最右边'/'之后的名字作为id
+        _info.id = _stream_id = FindField(url.data(), url.substr(url.rfind('/')+1).data(), NULL);
     }
 
     if (on_data && !_ingest) {
@@ -65,11 +55,11 @@ void PlayHelper::start(const string &url, onPlay on_play, onShutdown on_shutdown
         WarnL << "Invalid url: " << url;
     }
 }
-void PlayHelper::restart(const string &url, onPlay on_play, onShutdown on_shutdown, onData on_data) {
+void PlayHelper::restart(const string &url, onStatusChanged on_status_changed, onData on_data) {
     if (_info.status != ChannelStatus_Idle) {
         teardown();
     }
-    start(url, on_play, on_shutdown, on_data);
+    start(url, on_status_changed, on_data);
 }
 
 void PlayHelper::startFromFile(const string &file) {
@@ -97,8 +87,10 @@ void PlayHelper::startFromNetwork(const string &url) {
         } else {
             //发生了错误，并且没办法重新拉流了，回调通知
             strong_self->_info.stopTime = ::time(NULL);
-            if (strong_self->_on_shutdown) {
-                strong_self->_on_shutdown("player shutdown", (ErrorCode)err.getErrCode());
+            strong_self->_info.status = ChannelStatus_Idle;
+            if (strong_self->_on_status_changed) {
+                strong_self->_on_status_changed(strong_self->_stream_id,
+                    strong_self->_info.status, strong_self->_info.startTime, err);
             }
         }
     };
@@ -123,11 +115,10 @@ void PlayHelper::startFromNetwork(const string &url) {
         }
 
         //播放结果仅回调一次
-        if (strong_self->_on_play) {
+        if (strong_self->_on_status_changed) {
             DebugL << "Play Result: [" << err.getErrCode() << "]";
-            strong_self->_on_play("success", strong_self->_info.status,
-                        strong_self->_info.startTime, (ErrorCode)err.getErrCode());
-            strong_self->_on_play = nullptr;
+            strong_self->_on_status_changed(strong_self->_stream_id, strong_self->_info.status,
+                        strong_self->_info.startTime, err);
         }
     });
 
@@ -157,13 +148,16 @@ void PlayHelper::setDirectProxy() {
 void PlayHelper::rePlay(const std::string &url, int failed_cnt) {
     auto iDelay = MAX(2 * 1000, MIN(failed_cnt * 3000, 60 * 1000));
     weak_ptr<PlayHelper> weak_self = shared_from_this();
+    _info.status = ChannelStatus_RePlaying;
+    if (_on_status_changed) {
+        _on_status_changed(_stream_id, _info.status, _info.startTime, SockException(Err_success, "RePlaying", 0));
+    }
     _timer = std::make_shared<Timer>(iDelay / 1000.0f, [weak_self, url, failed_cnt]() {
         //播放失败次数越多，则延时越长
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return false;
         }
-        strong_self->_info.status = ChannelStatus_RePlaying;
         strong_self->_info.total_retry++;
         WarnL << "重试播放[" << failed_cnt << "]:" << url;
         strong_self->MediaPlayer::play(url);
@@ -185,8 +179,8 @@ bool PlayHelper::close(MediaSource &sender) {
         strongSelf->setMediaSource(nullptr);
         strongSelf->teardown();
     });
-    if (_on_shutdown) {
-        _on_shutdown("closed by user", Success);
+    if (_on_status_changed) {
+        _on_status_changed(_stream_id, ChannelStatus_Idle, _info.startTime, SockException());
     }
     WarnL << "close media: " << sender.getUrl();
     return true;
@@ -241,13 +235,15 @@ void PlayHelper::onPlaySuccess() {
             if (!_media_src) {
                 //从录像文件输入失败了，需要通知
                 _info.status = ChannelStatus_Idle;
-                if (_on_play) {
-                    _on_play("Create from MP4 failed", ChannelStatus_Idle, _info.startTime, ErrorCode::NotFound);
+                if (_on_status_changed) {
+                    _on_status_changed(_stream_id, _info.status, _info.startTime,
+                                SockException(Err_other, "Create from MP4 failed", -1));
                 }
                 return;
             }
             _info.status = ChannelStatus_Playing;
-            _on_play("Success", ChannelStatus_Playing, _info.startTime, ErrorCode::Success);
+            _on_status_changed(_stream_id, _info.status, _info.startTime,
+                                SockException(Err_success, "Success", 0));
         }
     }
     _muxer->setMediaListener(shared_from_this());
@@ -287,22 +283,14 @@ void PlayHelper::onPlaySuccess() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FrameIngest::inputFrame(const Frame::Ptr &frame) {
-
     weak_ptr<FrameIngest> weak_self = shared_from_this();
     auto flush_video = [weak_self](uint64_t dts, uint64_t pts, const Buffer::Ptr &buffer, bool have_idr) {
         auto strong_self = weak_self.lock();
-        if (!strong_self) { return; }
-
+        if (!strong_self) {
+            return;
+        }
         if (strong_self->_on_data) {
-            mgw_packet pkt;
-            pkt.data = (uint8_t*)buffer->data();
-            pkt.size = buffer->size();
-            pkt.dts = dts * 1000;
-            pkt.pts = pts * 1000;
-            pkt.eid = strong_self->_video_eid == CodecH265 ? EncoderId_H265 : EncoderId_H264;
-            pkt.type = EncoderType_Video;
-            pkt.keyframe = (have_idr/* || frame->keyFrame()*/);
-            strong_self->_on_data(&pkt);
+            strong_self->_on_data(strong_self->_video_eid, buffer->data(), buffer->size(), dts, pts, have_idr);
         }
     };
 
@@ -320,18 +308,10 @@ bool FrameIngest::inputFrame(const Frame::Ptr &frame) {
             //不用等到下一帧视频到来才输出视频，否则中间来音频帧会导致buffer时间戳不连续
             //帧的派发，在同一个线程上，不需要考虑多线程的问题
             _merge.inputFrame(nullptr, flush_video);
-
-            mgw_packet pkt;
-            pkt.data = (uint8_t*)frame->data();
-            pkt.size = frame->size();
-            pkt.dts = frame->dts() * 1000;
-            pkt.pts = frame->pts() * 1000;
-            pkt.eid = EncoderId_AAC;
-            pkt.type = EncoderType_Audio;
-            //先固定成0
-            pkt.audio_track = 0;
-            pkt.keyframe = frame->keyFrame();
-            _on_data(&pkt);
+            //CodecId, const char*, uint32_t, uint64_t, uint64_t, bool
+            if (_on_data) {
+                _on_data(frame->getCodecId(), frame->data(), frame->size(), frame->dts(), frame->pts(), frame->keyFrame());
+            }
             break;
         }
     }

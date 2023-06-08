@@ -203,6 +203,9 @@ if [[ 1 == $SERVER ]]; then
         exit 1
     fi
     cd ../..
+    MACROS+="-DENABLE_API=OFF"
+else
+    MACROS+="-DCROSS_3RD_PATH=${CROSS_3RD_PATH}"
 fi
 
 for opt in $OPTIONS; do
@@ -258,7 +261,7 @@ fi
 
 cd build
 export CC=${cross_prefix}gcc CXX=${cross_prefix}g++
-cmake .. ${MACROS} >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+cmake .. ${MACROS} -DCMAKE_INSTALL_PREFIX=${prefix}; >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
     echo $color_red"configure cmake failed!"$color_clear
     exit 3
 else

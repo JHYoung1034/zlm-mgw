@@ -74,7 +74,6 @@ void RtmpPusher::publish(const string &url)  {
         onPublishResult_l(SockException(Err_other, "rtmp url非法"), false);
         return;
     }
-    DebugL << host_url << " " << _app << " " << _stream_id;
 
     uint16_t port = 1935;
     splitUrl(host_url, host_url, port);

@@ -96,7 +96,8 @@ PushHelper::Ptr U727::pusher(const string &stream_id) {
 PlayHelper::Ptr U727::player(const string &stream_id) {
     auto &player = _player_map[stream_id];
     if (!player) {
-        player = make_shared<PlayHelper>(stream_id, 10);
+        GET_CONFIG(uint32_t, max_retry, Mgw::kMaxRetry);
+        player = make_shared<PlayHelper>(stream_id, 0, max_retry);
     }
     return player;
 }

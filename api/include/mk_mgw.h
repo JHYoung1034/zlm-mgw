@@ -2,13 +2,13 @@
 #ifndef __MGW_MK_MGW_H__
 #define __MGW_MK_MGW_H__
 
-#include "core/Defines.h"
 #include <inttypes.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef void handler_t;
+typedef void mgw_handler_t;
+#define ENABLE_RTMP_HEVC 1
 
 //定义一些需要回调通知的结构
 typedef struct stream_attrs {
@@ -18,14 +18,23 @@ typedef struct stream_attrs {
     uint32_t        max_4kbitrate;//4k源最大允许的码率
 }stream_attrs;
 
-typedef struct pusher_status {
+typedef enum mk_status {
+    MK_STATUS_IDLE = 0,
+    MK_STATUS_PUSHING,
+    MK_STATUS_REPUSHING,
+
+    MK_STATUS_PLAYING,
+    MK_STATUS_REPLAYING,
+}mk_status;
+
+typedef struct status_info {
     bool                remote;
     uint32_t            channel;
-    enum ChannelStatus  status;
-    enum ErrorCode      error;
+    mk_status           status;
+    int                 error;      //enum ErrorCode
     int                 start_time;
     void                *priv;
-}pusher_status;
+}status_info;
 
 typedef struct waterline_info {
     uint32_t            channel;
@@ -36,26 +45,36 @@ typedef struct waterline_info {
 }waterline_info;
 
 typedef struct net_info {
-    uint16_t        mtu;
-    const char      *netif;
+    uint16_t  mtu;
+    char      netif[32];
 }netinfo;
 
+typedef enum mk_event {
+    MK_EVENT_NONE = 0,
+    MK_EVENT_GET_NETINFO = 1,   //netifo
+    MK_EVENT_SET_STREAM_CFG,    //stream_attrs
+    MK_EVENT_SET_STREAM_STATUS, //status_info
+    MK_EVENT_SET_WATERLINE,     //waterline_info
+    MK_EVENT_GET_STREAM_META,   //stream_meta
+    MK_EVENT_SET_START_VIDEO,   //int channel
+    MK_EVENT_SET_STOP_VIDEO,    //int channel
+}mk_event_t;
+
 /**< Context structure */
-typedef void (*mgw_callback)(handler_t *h, void *param); //回调通知到设备业务层
+typedef void (*mgw_callback)(mgw_handler_t *h, mk_event_t e, void *param); //回调通知到设备业务层
 typedef struct mgw_context {
     const char      *vendor;    //设备厂商
     const char      *type;      //设备型号
     const char      *sn;        //设备序列号
     const char      *version;   //设备版本号
-    const char      *token;     //接入token
     stream_attrs    stream_attr;
     const char      *log_path;  //日志文件路径
     uint32_t        log_level;  //0-trace, 1-debug, 2-info, 3-warn, 4-error
     mgw_callback    callback;
 }mgw_context;
 
-handler_t *mgw_create_device(mgw_context *ctx);
-void mgw_release_device(handler_t *h);
+mgw_handler_t *mgw_create_device(mgw_context *ctx);
+void mgw_release_device(mgw_handler_t *h);
 
 /////////////////////////////////////////////////////////////////
 typedef struct conn_info {
@@ -63,25 +82,42 @@ typedef struct conn_info {
     uint16_t        mtu;
     const char      *netif;
     const char      *url;
+    const char      *token;     //接入token
 }conn_info;
 
-int mgw_connect2server(handler_t *h, const conn_info *info);
-void mgw_disconnect4server(handler_t *h);
-bool mgw_server_available(handler_t *h);
+int mgw_connect2server(mgw_handler_t *h, const conn_info *info);
+void mgw_disconnect4server(mgw_handler_t *h);
+bool mgw_server_available(mgw_handler_t *h);
 
 /////////////////////////////////////////////////////////////////
+typedef enum mk_codec_id {
+    MK_CODEC_ID_NONE = 0,
+    MK_CODEC_ID_H264,
+    MK_CODEC_ID_H265,
+    MK_CODEC_ID_AAC,
+}mk_codec_id;
+
 typedef struct stream_meta {
-    enum EncoderId  video_id, audio_id;
+    mk_codec_id     video_id, audio_id;
     uint16_t        width, height, fps, vkbps;
     uint16_t        channels, samplerate, samplesize, akbps;
 }stream_meta;
+
+typedef struct mk_frame {
+    mk_codec_id id;
+    const char *data;
+    uint32_t size;
+    uint64_t dts;   //单位：ms
+    uint64_t pts;   //单位：ms
+    bool keyframe;
+}mk_frame_t;
 
 typedef struct play_info {
     const char      *url;
     const char      *netif;
     uint16_t        mtu;
     void (*meta_update)(uint32_t channel, stream_meta *info);
-    void (*input_packet)(uint32_t channel, mgw_packet *pkt);
+    void (*input_packet)(uint32_t channel, mk_frame_t frame);
 }play_info;
 
 typedef struct source_info {
@@ -93,19 +129,15 @@ typedef struct source_info {
     };
 }source_info;
 
-enum InputType {
-    InputType_Raw = 0,
-    InputType_play,
-    InputType_publish,
-};
-
-int mgw_add_source(handler_t *h, source_info *info);
-int mgw_input_packet(handler_t *h, uint32_t channel, mgw_packet *pkt);
-void mgw_release_source(handler_t *h, bool local, uint32_t channel);
-void mgw_update_meta(handler_t *h, uint32_t channel, stream_meta *info);
-bool mgw_has_source(handler_t *h, uint32_t channel);
-void mgw_start_recorder(handler_t *h, uint32_t channel, enum InputType type);
-void mgw_stop_recorder(handler_t *h, uint32_t channel, enum InputType type);
+int mgw_add_source(mgw_handler_t *h, source_info *info);
+int mgw_input_packet(mgw_handler_t *h, uint32_t channel, mk_frame_t frame);
+void mgw_release_source(mgw_handler_t *h, bool local, uint32_t channel);
+//只有local source才能更新meta
+void mgw_update_meta(mgw_handler_t *h, uint32_t channel, stream_meta *info);
+bool mgw_has_source(mgw_handler_t *h, bool local, uint32_t channel);
+//开启录像
+void mgw_start_recorder(mgw_handler_t *h, bool local, uint32_t channel);
+void mgw_stop_recorder(mgw_handler_t *h, bool local, uint32_t channel);
 
 /////////////////////////////////////////////////////////////////
 typedef struct pusher_info {
@@ -114,15 +146,20 @@ typedef struct pusher_info {
     bool            src_remote;
     uint32_t        src_chn;
     const char      *url;
+    const char      *key;
+    const char      *username;
+    const char      *password;
     const char      *ip;
     const char      *bind_netif;
     uint16_t        bind_mtu;
-    const char      *priv;
+    void            *user_data;
 }pusher_info;
 
-int mgw_add_pusher(handler_t *h, pusher_info *info);
-void mgw_release_pusher(handler_t *h, bool remote, uint32_t chn);
-bool mgw_has_pusher(handler_t *h, bool remote, uint32_t chn);
+int mgw_add_pusher(mgw_handler_t *h, pusher_info *info);
+void mgw_release_pusher(mgw_handler_t *h, bool remote, uint32_t chn);
+bool mgw_has_pusher(mgw_handler_t *h, bool remote, uint32_t chn);
+bool mgw_has_tunnel_pusher(mgw_handler_t *h);
+void mgw_release_tunnel_pusher(mgw_handler_t *h);
 
 /////////////////////////////////////////////////////////////////
 //播放服务属性
@@ -135,27 +172,26 @@ typedef struct play_service_attr {
     const char  *play_url;
 }play_service_attr;
 
-void mgw_set_play_service(handler_t *h, play_service_attr *attr);
-void mgw_get_play_service(handler_t *h, play_service_attr *attr);
+void mgw_set_play_service(mgw_handler_t *h, play_service_attr *attr);
+void mgw_get_play_service(mgw_handler_t *h, play_service_attr *attr);
 
 /////////////////////////////////////////////////////////////////
-typedef void (*on_played)();
-typedef void (*on_shutdown)();
-typedef void (*on_data)();
+typedef void (*on_status)(uint32_t channel, status_info info);
+typedef void (*on_data)(uint32_t channel, mk_frame_t frame);
 
 typedef struct player_attr {
+    bool        remote;
     int         channel;
     const char  *url;
     const char  *netif;
-    const char  *mtu;
+    uint16_t    mtu;
 
-    on_played   played_cb;
-    on_shutdown close_cb;
+    on_status   status_cb;
     on_data     data_cb;
 }player_attr;
 
-void mgw_add_player(handler_t *h, const player_attr *attr);
-void mgw_release_player(handler_t *h, int channel);
+void mgw_add_player(mgw_handler_t *h, player_attr attr);
+void mgw_release_player(mgw_handler_t *h, bool remote, int channel);
 
 #ifdef __cplusplus
 }
