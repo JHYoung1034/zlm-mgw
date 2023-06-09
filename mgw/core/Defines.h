@@ -100,7 +100,7 @@ typedef struct mgw_packet {
 #define mgw_error(e) -(e)
 
 std::string getOutputName(bool remote, uint32_t chn);
-std::string getSourceName(bool remote, uint32_t chn);
+std::string getSourceName(bool remote, uint32_t chn, const std::string &sn);
 
 int getOutputChn(const std::string &name);
 int getSourceChn(const std::string &name);

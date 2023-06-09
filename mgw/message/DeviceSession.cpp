@@ -103,6 +103,15 @@ void DeviceSession::setEventHandle() {
             strong_self->sendStartTunnelPush(0, url);
         }, false);
     });
+
+    //收到推拉流事件，由设备处理鉴权
+    _device_helper->setOnAuthen([weak_self](const string &url)->bool {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return false;
+        }
+        return strong_self->_device_helper->device()->availableAddr(url);
+    });
 }
 
 /// @brief Send raw data to network
@@ -171,7 +180,7 @@ void DeviceSession::onMsg_sessionReq(ProtoBufDec &dec) {
     rsp->set_maxbitrate(max_bitrate);
     rsp->set_maxbitrate4k(max_4kbitrate);
     common::StreamAddress *addr = rsp->mutable_streamaddr();
-    string url = device->getPushaddr(0, tunnel_protocol);
+    string url = device->getPushaddr(0, tunnel_protocol, true);
     if (tunnel_protocol == "srt") {
         common::SRTStreamAddress *srt = addr->mutable_srt();
         srt->set_simaddr(url);
@@ -179,7 +188,7 @@ void DeviceSession::onMsg_sessionReq(ProtoBufDec &dec) {
         common::RTMPStreamAddress *rtmp = addr->mutable_rtmp();
         rtmp->set_uri(url);
     }
-    rsp->set_pulladdr(device->getPlayaddr(0, tunnel_protocol));
+    rsp->set_pulladdr(device->getPlayaddr(0, tunnel_protocol, true));
 
     ProtoBufEnc enc(msg);
     sendResponse(enc);

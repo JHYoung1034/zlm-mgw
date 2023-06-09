@@ -53,7 +53,7 @@ void EventProcess::run() {
     //添加监听
     static onceToken token([this] {
         //推拉流地址鉴权, 如果是本地设备，也应该通过DeviceHelper::findDevice(sn) 查找到
-        //TODO: 本地设备的输入源名字也应该是[sn]_C[n]
+        //TODO: 本地设备的输入源名字也应该是[sn]_L_C[n]
         auto auth_token = [this](bool publish, const MediaInfo &args, string &sn)->string {
             string err("");
             sn = getSnByStreamId(args._streamid);
@@ -62,7 +62,7 @@ void EventProcess::run() {
             bool access = false;
             if (device) {
                 //url需要加上端口号，校验完整的url
-                access = device->availableAddr(getFullUrl(args._schema, args._full_url, args._port));
+                access = device->doOnAuthen(getFullUrl(args._schema, args._full_url, args._port));
             } else if (u727) {
                 access = u727->availableRtspAddr(getFullUrl(args._schema, args._full_url, args._port));
             } else {

@@ -6,13 +6,13 @@ using namespace std;
 //[R/L]O[n]     remote/local output channel
 string getOutputName(bool remote, uint32_t chn) {
     ostringstream ostr;
-    ostr << (remote ? "R" : "L") << "O" << chn;
+    ostr << (remote ? "R" : "L") << "_OC" << chn;
     return ostr.str();
 }
-//[R/L]S[n]     remote/local source channel
-string getSourceName(bool remote, uint32_t chn) {
+//[sn]_[R/L]_SC[n]     remote/local source channel, e.g: HDMN2DEV_L_SC0
+string getSourceName(bool remote, uint32_t chn, const string &sn) {
     ostringstream ostr;
-    ostr << (remote ? "R" : "L") << "S" << chn;
+    ostr << sn.substr(0, SHORT_SN_LEN) << "_" << (remote ? "R" : "L") << "_SC" << chn;
     return ostr.str();
 }
 
@@ -20,17 +20,17 @@ static inline int getChn(const string &name, const string &sub) {
     int chn = -1;
     size_t pos = name.rfind(sub);
     if (pos != string::npos) {
-        chn = atoi(name.substr(pos+1).c_str());
+        chn = atoi(name.substr(pos+3).c_str());
     }
     return chn;
 }
 
 int getOutputChn(const string &name) {
-    return getChn(name, "O");
+    return getChn(name, "_OC");
 }
 
 int getSourceChn(const string &name) {
-    return getChn(name, "S");
+    return getChn(name, "_SC");
 }
 
 void urlAddPort(string &url, uint16_t port) {

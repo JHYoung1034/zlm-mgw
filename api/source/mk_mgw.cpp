@@ -259,8 +259,17 @@ void DeviceHandle::setDeviceCallback() {
     });
     //推流或者拉流找不到流，可以通知启动设备编码器，按需编码
     _device_helper->setOnNotFoundStream([&](const std::string &url) {
-        DebugL << "on not found stream: " << url;
-
+        string name = _source_helper->getStreamId();
+        if (url.find(name) == string::npos) {
+            return;
+        }
+        //切换回自己的线程再执行
+        _poller->async([&, name](){
+            if (_device_cb) {
+                int chn = getSourceChn(name);
+                _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_START_VIDEO, &chn);
+            }
+        }, false);
     });
     //远程代理流状态发生变化时走这个回调
     _device_helper->setOnStatusChanged([&](ChannelType chn_type, ChannelId chn,
@@ -283,6 +292,11 @@ void DeviceHandle::setDeviceCallback() {
     _device_helper->setOnNoReader([&](){
         DebugL << "On no reader";
     });
+    //推拉流鉴权处理，设备上的推拉流不做鉴权，直接通过
+    _device_helper->setOnAuthen([&](const string &url)->bool{
+        return true;
+    });
+
 }
 
 bool DeviceHandle::startup(mgw_context *ctx) {
@@ -396,30 +410,6 @@ bool DeviceHandle::startup(mgw_context *ctx) {
     //在这里监听事件，触发hook调用，比如鉴权，注册和注销流 事件
     EventProcess::Instance()->run();
 
-    NoticeCenter::Instance().addListener(this, Broadcast::kBroadcastNotFoundStream,[weak_self](BroadcastNotFoundStreamArgs){
-        auto strong_self = weak_self.lock();
-        if (!strong_self) {
-            return;
-        }
-
-        string name = strong_self->_source_helper->getStreamId();
-        if (args._streamid != name) {
-            return;
-        }
-        //切换回自己的线程再执行
-        strong_self->_poller->async([weak_self, name](){
-            auto strong_self = weak_self.lock();
-            if (!strong_self) {
-                return;
-            }
-
-            if (strong_self->_device_cb) {
-                int chn = getSourceChn(name);
-                strong_self->_device_cb((mgw_handler_t*)obj, MK_EVENT_SET_START_VIDEO, &chn);
-            }
-        }, false);
-    });
-
     return true;
 }
 
@@ -463,9 +453,8 @@ bool DeviceHandle::hasSource(bool local, int channel) {
 
 bool DeviceHandle::addRawSource(source_info *info) {
     if (!_source_helper) {
-        DebugL << "Create source: " << getSourceName(!info->local, info->channel);
-        _source_helper = make_shared<UcastSourceHelper>(DEFAULT_VHOST, "live",
-                            getSourceName(!info->local, info->channel), _poller);
+        string src_name = getSourceName(!info->local, info->channel, _device_helper->sn());
+        _source_helper = make_shared<UcastSourceHelper>(DEFAULT_VHOST, "live", src_name, _poller);
     }
 
     // _source_helper->initSource(info);
@@ -481,7 +470,7 @@ void DeviceHandle::releaseRawSource(bool local, int channel) {
 }
 
 bool DeviceHandle::setupRecord(bool local, int channel, bool start) {
-    string id = getSourceName(!local, channel);
+    string id = getSourceName(!local, channel, _device_helper->sn());
     if (local) {
         auto src = MediaSource::find(DEFAULT_VHOST, "live", id);
         if (!src) {
@@ -552,7 +541,7 @@ void DeviceHandle::updateMeta(bool local, int channel, stream_meta *info) {
 
 //pusher
 int DeviceHandle::addPusher(pusher_info *info) {
-    string src_name = getSourceName(info->src_remote, info->src_chn);
+    string src_name = getSourceName(info->src_remote, info->src_chn, _device_helper->sn());
     PusherInfo pusher_info(info);
     ostringstream oss;
     //注意，如果子串开头就是字符串开头，不要填入
@@ -653,7 +642,7 @@ int DeviceHandle::addPlayer(player_attr info) {
         info.status_cb(info.channel, sta);
     };
 
-    auto src_name = getSourceName(info.remote, info.channel);
+    auto src_name = getSourceName(info.remote, info.channel, _device_helper->sn());
     if (!info.data_cb) {
         _device_helper->addPlayer(src_name, info.url, on_play_status, nullptr, info.netif, info.mtu);
     } else {
@@ -681,7 +670,7 @@ int DeviceHandle::addPlayer(player_attr info) {
 }
 
 void DeviceHandle::releasePlayer(bool remote, int channel) {
-    _device_helper->releasePlayer(getSourceName(remote, channel));
+    _device_helper->releasePlayer(getSourceName(remote, channel, _device_helper->sn()));
 }
 
 //play service

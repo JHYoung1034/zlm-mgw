@@ -85,7 +85,7 @@ uint32_t Device::players(bool local, const string &schema) {
     return local ? _local_players.load() : _remote_players.load();
 }
 
-string Device::getPushaddr(uint32_t chn, const string &schema) {
+string Device::getPushaddr(uint32_t chn, const string &schema, bool remote) {
     if (!_cfg.push_addr.empty())
         return _cfg.push_addr;
 
@@ -95,15 +95,17 @@ string Device::getPushaddr(uint32_t chn, const string &schema) {
         WarnL << "host is empty!";
         return "";
     }
+    ostringstream oss;
+    oss << _cfg.sn.substr(0, 8) << "_" << (remote?"R":"L") << "_SC" << chn;
 
     if (schema == "rtmp") {
         uint16_t rtmp_port = mINI::Instance()[Rtmp::kPort];
-        _cfg.push_addr = _auth.getRtmpPushAddr(host, _cfg.sn.substr(0, 8),
-                            _start_time + available_time, chn, rtmp_port);
+        _cfg.push_addr = _auth.getRtmpPushAddr(host, oss.str(),
+                            _start_time + available_time, rtmp_port);
     } else if (schema == "srt") {
         uint16_t srt_port = mINI::Instance()[SrtSrv::kPort];
-        _cfg.push_addr = _auth.getSrtPushAddr(host, _cfg.sn.substr(0, 8),
-                            _start_time + available_time, chn, srt_port);
+        _cfg.push_addr = _auth.getSrtPushAddr(host, oss.str(),
+                            _start_time + available_time, srt_port);
     } else if (schema == "rtsp") {
         uint16_t rtsp_port = mINI::Instance()[Rtsp::kPort];
         ostringstream oss;
@@ -114,7 +116,7 @@ string Device::getPushaddr(uint32_t chn, const string &schema) {
     return _cfg.push_addr;
 }
 
-string Device::getPlayaddr(uint32_t chn, const string &schema) {
+string Device::getPlayaddr(uint32_t chn, const string &schema, bool remote) {
     string play_addr;
     GET_CONFIG(uint32_t, available_time, Mgw::kUrlValidityPeriodSec);
     GET_CONFIG(string, host, Mgw::kOutHostIP);
@@ -123,15 +125,16 @@ string Device::getPlayaddr(uint32_t chn, const string &schema) {
         WarnL << "host is empty!";
         return "";
     }
-
+    ostringstream oss;
+    oss << _cfg.sn.substr(0, 8) << "_" << (remote?"R":"L") << "_SC" << chn;
     if (schema == "rtmp") {
         uint16_t rtmp_port = mINI::Instance()[Rtmp::kPort];
-        play_addr = _auth.getRtmpPullAddr(host, _cfg.sn.substr(0, 8),
-                            _start_time + available_time, chn, rtmp_port);
+        play_addr = _auth.getRtmpPullAddr(host, oss.str(),
+                            _start_time + available_time, rtmp_port);
     } else if (schema == "srt") {
         uint16_t srt_port = mINI::Instance()[SrtSrv::kPort];
-        play_addr = _auth.getSrtPullAddr(host, _cfg.sn.substr(0, 8),
-                            _start_time + available_time, chn, srt_port);
+        play_addr = _auth.getSrtPullAddr(host, oss.str(),
+                            _start_time + available_time, srt_port);
     } else if (schema == "rtsp") {
         uint16_t rtsp_port = mINI::Instance()[Rtsp::kPort];
         ostringstream oss;

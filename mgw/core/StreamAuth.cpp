@@ -40,14 +40,13 @@ err:
 }
 
 //rtmp://DomainName/AppName/StreamName?auth_key=method-timestamp-rand-uid-md5hash
-//rtmp://192.168.0.15:1935/live/HDMN2DEV_C0?auth_key=push-1669813114-0-0-602c8645457f82b72fce392da3814038
-string StreamAuth::getRtmpAddr(const string &host,
-            const string &dev, const string &method,
-            int time, uint32_t chn, uint16_t port) {
+//rtmp://192.168.0.15:1935/live/HDMN2DEV_L_C0?auth_key=push-1669813114-0-0-602c8645457f82b72fce392da3814038
+string StreamAuth::getRtmpAddr(const string &host, const string &id,
+                    const string &method, int time, uint16_t port) {
 
     ostringstream oss;
     oss << "rtmp://" << host << ":" << port;
-    oss << "/live/" << dev << "_C" << chn;
+    oss << "/live/" << id;
     oss << "?auth_key=" << method << "-" << time << "-0-0-";
 
     //md5sum(uri+method-time+rand+uid+accessToken)
@@ -61,22 +60,20 @@ string StreamAuth::getRtmpAddr(const string &host,
     return ret;
 }
 
-string StreamAuth::getRtmpPushAddr(const string &host, const string &dev,
-                        int time, uint32_t chn, uint16_t port) {
+string StreamAuth::getRtmpPushAddr(const string &host, const string &id, int time, uint16_t port) {
     _push_time = time;
-    return getRtmpAddr(host, dev, "push", time, chn, port);
+    return getRtmpAddr(host, id, "push", time, port);
 }
 
 /** 如果time=0, 则使用推流地址设置的time，如果time>0, 应该判断不能大于推流地址的time */
-string StreamAuth::getRtmpPullAddr(const string &host, const string &dev,
-                        int time, uint32_t chn, uint16_t port) {
+string StreamAuth::getRtmpPullAddr(const string &host, const string &id, int time, uint16_t port) {
     if (!_push_time) {
         return string();
     }
     if (!time || time > _push_time)
         time = _push_time;
 
-    return getRtmpAddr(host, dev, "pull", time, chn, port);
+    return getRtmpAddr(host, id, "pull", time, port);
 }
 
 bool StreamAuth::availableRtmpAddr(const string &url) {
@@ -107,18 +104,15 @@ bool StreamAuth::availableRtmpAddr(const string &url) {
     return !private_key.compare(md5Sum(str + "-" + _key));
 }
 
-
 //srt
 //-------------------------------------------------------------------------------------------------------------------------------------------
-
-//srt://[host]:[port]?streamid=#!::h=[host],r=/live/[dev]_C[chn],m=publish/request,auth_key=[timestamp]-[rand]-[uid]-[privateKey]
-//srt://192.168.0.15:60003?streamid=#!::h=192.168.0.15,r=/live/HDMN2DEV_C0,m=publish,auth_key=1669813114-0-0-602c8645457f82b72fce392da3814038
-string StreamAuth::getSrtAddr(const string &host,
-                const string &dev, const string &method,
-                int time, uint32_t chn, uint16_t port) {
+//srt://[host]:[port]?streamid=#!::h=[host],r=/live/id,m=publish/request,auth_key=[timestamp]-[rand]-[uid]-[privateKey]
+//srt://192.168.0.15:60003?streamid=#!::h=192.168.0.15,r=/live/HDMN2DEV_L_C0,m=publish,auth_key=1669813114-0-0-602c8645457f82b72fce392da3814038
+string StreamAuth::getSrtAddr(const string &host, const string &id,
+                        const string &method, int time, uint16_t port) {
     ostringstream oss;
     oss << "srt://" << host << ":" << port;
-    oss << "?streamid=#!::h=" << host << ",r=/live/" << dev << "_C" << chn;
+    oss << "?streamid=#!::h=" << host << ",r=/live/" << id;
     oss << ",m=" << method << ",auth_key=" << time << "-0-0-";
 
     //md5sum(uri+method-time+rand+uid+accessToken)
@@ -127,21 +121,21 @@ string StreamAuth::getSrtAddr(const string &host,
     return ret;
 }
 
-string StreamAuth::getSrtPushAddr(const string &host, const string &dev,
-                        int time, uint16_t port, uint32_t chn) {
+string StreamAuth::getSrtPushAddr(const string &host,
+                    const string &id, int time, uint16_t port) {
     _push_time = time;
-    return getSrtAddr(host, dev, "publish", time, chn, port);
+    return getSrtAddr(host, id, "publish", time, port);
 }
 
-string StreamAuth::getSrtPullAddr(const string &host, const string &dev,
-                    int time, uint16_t port, uint32_t chn) {
+string StreamAuth::getSrtPullAddr(const string &host,
+                    const string &id, int time, uint16_t port) {
     if (!_push_time) {
         return string();
     }
     if (!time || time > _push_time)
         time = _push_time;
 
-    return getSrtAddr(host, dev, "request", time, chn, port);
+    return getSrtAddr(host, id, "request", time, port);
 }
 
 bool StreamAuth::availableSrtAddr(const string &url) {

@@ -32,6 +32,7 @@ public:
     using onNotFoundStream = std::function<void(const std::string &)>;
     using onConfigChanged = std::function<void(const DeviceConfig &)>;
     using onStatusChanged = std::function<void(ChannelType, ChannelId, ChannelStatus, ErrorCode, Time_t, void *)>;
+    using onAuthen = std::function<bool(const std::string &)>;
 
     friend class DeviceHelper;
 
@@ -78,8 +79,8 @@ public:
     //查询不同协议的播放数
     uint32_t players(bool local, const std::string &schema);
     //生成推流地址和播放地址，url合法性校验
-    std::string getPushaddr(uint32_t chn, const std::string &schema);
-    std::string getPlayaddr(uint32_t chn, const std::string &schema);
+    std::string getPushaddr(uint32_t chn, const std::string &schema, bool remote = false);
+    std::string getPlayaddr(uint32_t chn, const std::string &schema, bool remote = false);
     bool availableAddr(const std::string &url);
     ////////////DeviceBase///////////////
     std::string sn(void) override { return _cfg.sn; }
@@ -119,6 +120,12 @@ public:
             _on_status_changed(type, chn, sta, code, ts, userdata);
         }
     }
+    bool doOnAuthen(const std::string &full_url) {
+        if (!_on_authen) {
+            return false;
+        }
+        return _on_authen(full_url);
+    }
     ////////////////////////////////////////////
 
     ProtocolOption getEnableOption() const { return _option; }
@@ -149,6 +156,9 @@ private:
     ////////////////////设备端回调/////////////////////////
     onConfigChanged _on_config_changed = nullptr;
     onStatusChanged _on_status_changed = nullptr;
+
+    /////////////////处理推拉流鉴权////////////////////////
+    onAuthen _on_authen = nullptr;
 
     //收到该设备流的消费者变化时，记录在此，在状态同步时下发给设备
     //由于收到消费者变化的消息是由其他线程调用，因此该变量使用原子操作。
@@ -237,6 +247,10 @@ public:
     //某个pusher或者player状态发生了变化
     void setOnStatusChanged(Device::onStatusChanged status_changed) {
         device()->_on_status_changed = status_changed;
+    }
+    //当收到推流或者拉流事件时，调用鉴权处理
+    void setOnAuthen(Device::onAuthen authen) {
+        device()->_on_authen = authen;
     }
     /////////////////////////////////////////////////////////////////////
     void setOnNetif(getNetif get_netif) {

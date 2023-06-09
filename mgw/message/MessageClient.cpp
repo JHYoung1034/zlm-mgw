@@ -119,6 +119,7 @@ void MessageClient::onProcessCmd(ProtoBufDec &dec) {
 }
 
 void MessageClient::onMsg_sessionRsp(ProtoBufDec &dec) {
+    DebugP(this) << "onMsg_sessionRsp: " << dec.toString();
     const device::SessionRsp &rsp = dec.messge()->sessionrsp();
 
     auto strong_dev_helper = _device_helper.lock();
@@ -229,9 +230,14 @@ void MessageClient::onMsg_startTunnelPush(ProtoBufDec &dec) {
         }
     };
 
+    auto strong_dev = _device_helper.lock();
+    if (!strong_dev) {
+        return;
+    }
+
     GET_CONFIG(string, schema, Mgw::kStreamTunnel);
     ostringstream oss;
-    oss << schema << "://" << DEFAULT_VHOST << "/live/" << getSourceName(false, req.chn());
+    oss << schema << "://" << DEFAULT_VHOST << "/live/" << getSourceName(false, req.chn(), strong_dev->sn());
     DebugL << "Tunnel source url: " << oss.str();
 
     MediaInfo info(oss.str());

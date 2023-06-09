@@ -16,18 +16,18 @@ public:
 
     ////////////////////////////////////////////////////////////////////////////////
     std::string getRtmpPushAddr(const std::string &host,
-                        const std::string &dev, int time,
-                        uint32_t chn = 0, uint16_t port = 1935);
+                                const std::string &id,
+                                int time, uint16_t port = 1935);
     std::string getRtmpPullAddr(const std::string &host,
-                        const std::string &dev, int time,
-                        uint32_t chn = 0, uint16_t port = 1935);
+                                const std::string &id,
+                                int time, uint16_t port = 1935);
     bool availableRtmpAddr(const std::string &url);
 
     /////////////////////////////////////////////////////////////////////////////////
-    std::string getSrtPushAddr(const std::string &host, const std::string &dev,
-                        int time, uint16_t port, uint32_t chn = 0);
-    std::string getSrtPullAddr(const std::string &host, const std::string &dev,
-                        int time, uint16_t port, uint32_t chn = 0);
+    std::string getSrtPushAddr(const std::string &host, const std::string &id,
+                        int time, uint16_t port);
+    std::string getSrtPullAddr(const std::string &host, const std::string &id,
+                        int time, uint16_t port);
     bool availableSrtAddr(const std::string &url);
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -39,14 +39,12 @@ public:
 
 private:
     std::string getRtmpAddr(const std::string &host,
-                const std::string &dev, const std::string &method,
-                int time, uint32_t chn, uint16_t port);
-    std::string getSrtAddr(const std::string &host,
-                const std::string &dev, const std::string &method,
-                int time, uint32_t chn, uint16_t port);
-    std::string getRtspAddr(const std::string &host,
-                const std::string &stream_id, const std::string &method,
-                int time, uint16_t port);
+                const std::string &method,
+                const std::string &id, int time, uint16_t port);
+    std::string getSrtAddr(const std::string &host, const std::string &method,
+                        const std::string &id, int time, uint16_t port);
+    std::string getRtspAddr(const std::string &host, const std::string &stream_id,
+                        const std::string &method, int time, uint16_t port);
 
     std::string md5Sum(const std::string &data);
 private:
