@@ -321,7 +321,7 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
             } else if (dest_type == StreamType_Play) {
                 //需要根据stream_id生成拉流地址，返回给u727
                 DebugL << "需要根据stream_id生成拉流地址";
-                on_push_status(stream_id, ChannelStatus_Idle, ::time(NULL), SockException(), NULL);
+                on_push_status(stream_id, ChannelStatus_Playing, ::time(NULL), SockException(), NULL);
             } else if (dest_type == StreamType_File) {
                 //需要生成录像文件到指定路径
                 DebugL << "需要生成录像文件到指定路径: " << dest_url;
