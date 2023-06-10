@@ -45,8 +45,9 @@ void Device::releasePusher(const string &name) {
 
 PlayHelper::Ptr &Device::player(const string &name) {
     auto &player = _player_map[name];
+    GET_CONFIG(int, max_retry, Mgw::kMaxRetry);
     if (!player.operator bool()) {
-        player = make_shared<PlayHelper>(name, getSourceChn(name), 10);
+        player = make_shared<PlayHelper>(name, getSourceChn(name), max_retry);
     }
     return player;
 }
@@ -95,22 +96,18 @@ string Device::getPushaddr(uint32_t chn, const string &schema, bool remote) {
         WarnL << "host is empty!";
         return "";
     }
-    ostringstream oss;
-    oss << _cfg.sn.substr(0, 8) << "_" << (remote?"R":"L") << "_SC" << chn;
-
+    string streamid = getStreamId(_cfg.sn, remote ? Location_Svr : Location_Dev, InputType_Pub, chn);
     if (schema == "rtmp") {
         uint16_t rtmp_port = mINI::Instance()[Rtmp::kPort];
-        _cfg.push_addr = _auth.getRtmpPushAddr(host, oss.str(),
+        _cfg.push_addr = _auth.getRtmpPushAddr(host, streamid,
                             _start_time + available_time, rtmp_port);
     } else if (schema == "srt") {
         uint16_t srt_port = mINI::Instance()[SrtSrv::kPort];
-        _cfg.push_addr = _auth.getSrtPushAddr(host, oss.str(),
+        _cfg.push_addr = _auth.getSrtPushAddr(host, streamid,
                             _start_time + available_time, srt_port);
     } else if (schema == "rtsp") {
         uint16_t rtsp_port = mINI::Instance()[Rtsp::kPort];
-        ostringstream oss;
-        oss << _cfg.sn.substr(0, 8) << "_C" << chn;
-        return _auth.getRtspPushAddr(host, oss.str(), _start_time + available_time, rtsp_port);
+        return _auth.getRtspPushAddr(host, streamid, _start_time + available_time, rtsp_port);
     }
 
     return _cfg.push_addr;
@@ -125,21 +122,18 @@ string Device::getPlayaddr(uint32_t chn, const string &schema, bool remote) {
         WarnL << "host is empty!";
         return "";
     }
-    ostringstream oss;
-    oss << _cfg.sn.substr(0, 8) << "_" << (remote?"R":"L") << "_SC" << chn;
+    string streamid = getStreamId(_cfg.sn, remote ? Location_Svr : Location_Dev, InputType_Pub, chn);
     if (schema == "rtmp") {
         uint16_t rtmp_port = mINI::Instance()[Rtmp::kPort];
-        play_addr = _auth.getRtmpPullAddr(host, oss.str(),
+        play_addr = _auth.getRtmpPullAddr(host, streamid,
                             _start_time + available_time, rtmp_port);
     } else if (schema == "srt") {
         uint16_t srt_port = mINI::Instance()[SrtSrv::kPort];
-        play_addr = _auth.getSrtPullAddr(host, oss.str(),
+        play_addr = _auth.getSrtPullAddr(host, streamid,
                             _start_time + available_time, srt_port);
     } else if (schema == "rtsp") {
         uint16_t rtsp_port = mINI::Instance()[Rtsp::kPort];
-        ostringstream oss;
-        oss << _cfg.sn.substr(0, 8) << "_C" << chn;
-        return _auth.getRtspPullAddr(host, oss.str(), _start_time + available_time, rtsp_port);
+        return _auth.getRtspPullAddr(host, streamid, _start_time + available_time, rtsp_port);
     }
     return play_addr;
 }
@@ -295,14 +289,27 @@ void DeviceHelper::stopTunnelPusher() {
     releasePusher(TUNNEL_PUSHER);
 }
 
-void DeviceHelper::addPlayer(const string &name, const string &url,
+void DeviceHelper::addPlayer(const string &name, bool remote, const string &url,
                     PlayHelper::onStatusChanged on_status, PlayHelper::onData on_data,
-                    const string &netif, uint16_t mtu) {
+                    PlayHelper::onMeta on_meta, const string &netif, uint16_t mtu) {
+    auto dev = device();
+    auto player = dev->player(name);
+    if (!remote) {
+        player->setNetif(netif, mtu);
 
+        if (player->status() != ChannelStatus_Idle) {
+            WarnL << "Already exist, release the old and create a new: " << name;
+            player->restart(url, on_status, on_data, on_meta);
+        } else {
+            player->start(url, on_status, on_data, on_meta);
+        }
+    } else {
+        //TODO: 请求服务器代理拉流
+    }
 }
 
 void DeviceHelper::releasePlayer(const string &name) {
-
+    device()->releasePlayer(name);
 }
 
 bool DeviceHelper::hasPlayer(const string &name) {

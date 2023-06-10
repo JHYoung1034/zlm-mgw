@@ -237,7 +237,9 @@ void MessageClient::onMsg_startTunnelPush(ProtoBufDec &dec) {
 
     GET_CONFIG(string, schema, Mgw::kStreamTunnel);
     ostringstream oss;
-    oss << schema << "://" << DEFAULT_VHOST << "/live/" << getSourceName(false, req.chn(), strong_dev->sn());
+    //这里暂时设置成使用设备物理输入 TODO:消息可以指定某个源传输到服务器
+    string streamid = getStreamId(strong_dev->sn(), Location_Dev, InputType_Phy, req.chn());
+    oss << schema << "://" << DEFAULT_VHOST << "/live/" << streamid;
     DebugL << "Tunnel source url: " << oss.str();
 
     MediaInfo info(oss.str());

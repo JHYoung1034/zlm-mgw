@@ -266,9 +266,9 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
                 if (src_type == StreamType_Play || src_type == StreamType_File) {
                     auto player = strong_self->_u727->player(info._streamid);
                     if (player->status() != ChannelStatus_Idle) {
-                        player->restart(src_url, on_play_status, nullptr);
+                        player->restart(src_url, on_play_status, nullptr, nullptr);
                     } else {
-                        player->start(src_url, on_play_status, nullptr);
+                        player->start(src_url, on_play_status, nullptr, nullptr);
                     }
                 }
             }, false);

@@ -20,6 +20,9 @@ PlayHelper::PlayHelper(const string &name, int chn, int max_retry) {
 
 PlayHelper::~PlayHelper() {
     _timer.reset();
+    if (_info.status != ChannelStatus_Idle) {
+        teardown();
+    }
     if (_on_status_changed) {
         _on_status_changed(_info.id, ChannelStatus_Idle, ::time(NULL), SockException());
         _on_status_changed = nullptr;
@@ -30,10 +33,10 @@ void PlayHelper::setNetif(const string &netif, uint16_t mtu) {
     MediaPlayer::setNetif(netif, mtu);
 }
 
-void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onData on_data) {
+void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta) {
     _info.url = url;
     _on_status_changed = on_status_changed;
-    _on_data = on_data;
+    _on_meta = on_meta;
     _info.startTime = ::time(NULL);
 
     if (_stream_id.empty()) {
@@ -42,7 +45,7 @@ void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onD
     }
 
     if (on_data && !_ingest) {
-        _ingest = make_shared<FrameIngest>(on_data);
+        _ingest = make_shared<FrameIngest>(on_data, on_meta);
     } else {
         _ingest = nullptr;
     }
@@ -55,11 +58,11 @@ void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onD
         WarnL << "Invalid url: " << url;
     }
 }
-void PlayHelper::restart(const string &url, onStatusChanged on_status_changed, onData on_data) {
+void PlayHelper::restart(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta) {
     if (_info.status != ChannelStatus_Idle) {
         teardown();
     }
-    start(url, on_status_changed, on_data);
+    start(url, on_status_changed, on_data, on_meta);
 }
 
 void PlayHelper::startFromFile(const string &file) {
@@ -77,6 +80,10 @@ void PlayHelper::startFromNetwork(const string &url) {
         if (!strong_self) { return; }
 
         WarnL << "play err: " << err.what();
+        //主动关闭不需要重连
+        if (err && err.getErrCode() == Err_shutdown) {
+            return;
+        }
 
         if ((*failed_cnt) >= 0 && (*failed_cnt < strong_self->_max_retry || strong_self->_max_retry < 0)) {
             /**
@@ -258,6 +265,13 @@ void PlayHelper::onPlaySuccess() {
         if (_ingest) {
             videoTrack->addDelegate(_ingest);
         }
+        //发送meta信息
+        if (_on_meta) {
+            auto video = dynamic_pointer_cast<VideoTrack>(videoTrack);
+            //codecid, width, height, fps, vkbps
+            _on_meta(videoTrack->getCodecId(), video->getVideoWidth(),
+                video->getVideoHeight(), video->getVideoFps(), video->getBitRate());
+        }
     }
 
     auto audioTrack = getTrack(TrackAudio, false);
@@ -268,7 +282,14 @@ void PlayHelper::onPlaySuccess() {
         audioTrack->addDelegate(_muxer);
         //音频数据写入帧摄取器
         if (_ingest) {
-            videoTrack->addDelegate(_ingest);
+            audioTrack->addDelegate(_ingest);
+        }
+        //发送meta信息
+        if (_on_meta) {
+            auto audio = dynamic_pointer_cast<AudioTrack>(audioTrack);
+            //codecid, channels, samplerate, samplesize, akbps
+            _on_meta(audio->getCodecId(), audio->getAudioChannel(), audio->getAudioSampleRate(),
+                            audio->getAudioSampleBit(),audio->getBitRate());
         }
     }
 

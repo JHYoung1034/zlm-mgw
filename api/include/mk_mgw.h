@@ -97,6 +97,14 @@ typedef enum mk_codec_id {
     MK_CODEC_ID_AAC,
 }mk_codec_id;
 
+typedef enum DevInputType {
+    INPUT_TYPE_NONE = 0,
+    INPUT_TYPE_PHY,     //物理输入
+    INPUT_TYPE_PLA,     //拉流输入
+    INPUT_TYPE_REC,     //录像输入
+    INPUT_TYPE_PUB,     //推流输入
+}input_type_t;
+
 typedef struct stream_meta {
     mk_codec_id     video_id, audio_id;
     uint16_t        width, height, fps, vkbps;
@@ -121,8 +129,9 @@ typedef struct play_info {
 }play_info;
 
 typedef struct source_info {
+    bool            remote;
     uint32_t        channel;
-    bool            local;  //这个字段指定是设备源还是网络(文件)输入源
+    input_type_t    input_type;  //这个字段指定是设备源还是网络(文件)输入源
     union {
         stream_meta local_src;
         play_info   play_src;
@@ -136,14 +145,15 @@ void mgw_release_source(mgw_handler_t *h, bool local, uint32_t channel);
 void mgw_update_meta(mgw_handler_t *h, uint32_t channel, stream_meta *info);
 bool mgw_has_source(mgw_handler_t *h, bool local, uint32_t channel);
 //开启录像
-void mgw_start_recorder(mgw_handler_t *h, bool local, uint32_t channel);
-void mgw_stop_recorder(mgw_handler_t *h, bool local, uint32_t channel);
+void mgw_start_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel);
+void mgw_stop_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel);
 
 /////////////////////////////////////////////////////////////////
 typedef struct pusher_info {
     bool            remote;
     uint32_t        pusher_chn;
     bool            src_remote;
+    input_type_t    src_type;
     uint32_t        src_chn;
     const char      *url;
     const char      *key;
@@ -178,20 +188,23 @@ void mgw_get_play_service(mgw_handler_t *h, play_service_attr *attr);
 /////////////////////////////////////////////////////////////////
 typedef void (*on_status)(uint32_t channel, status_info info);
 typedef void (*on_data)(uint32_t channel, mk_frame_t frame);
+typedef void (*on_meta)(uint32_t channel, input_type_t it, stream_meta meta);
 
 typedef struct player_attr {
     bool        remote;
     int         channel;
+    input_type_t it;
     const char  *url;
     const char  *netif;
     uint16_t    mtu;
 
     on_status   status_cb;
     on_data     data_cb;
+    on_meta     meta_cb;
 }player_attr;
 
 void mgw_add_player(mgw_handler_t *h, player_attr attr);
-void mgw_release_player(mgw_handler_t *h, bool remote, int channel);
+void mgw_release_player(mgw_handler_t *h, bool remote, input_type_t it, int channel);
 
 #ifdef __cplusplus
 }

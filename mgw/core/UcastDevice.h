@@ -204,9 +204,9 @@ public:
     bool hasPusher(const std::string &name);
     const PushHelper::Ptr &getPusher(const std::string &name);
     //拉流
-    void addPlayer(const std::string &name, const std::string &url,
+    void addPlayer(const std::string &name, bool remote, const std::string &url,
                 PlayHelper::onStatusChanged on_status, PlayHelper::onData on_data,
-                const std::string &netif = "default", uint16_t mtu = 1500);
+                PlayHelper::onMeta on_meta, const std::string &netif = "default", uint16_t mtu = 1500);
     void releasePlayer(const std::string &name);
     bool hasPlayer(const std::string &name);
     //使用mgw-server下发的地址开启tunnel推流

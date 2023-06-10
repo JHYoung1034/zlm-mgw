@@ -66,9 +66,7 @@ public:
     DevChannel::Ptr &getChannel() { return _channel; }
 
     //添加音视频，完成后调用addTrackCompleted
-    void initSource(source_info *src_info);
     void initLocalSource(stream_meta *info);
-    void initPlaySource(play_info *info);
 
     bool initVideo(stream_meta *info);
     bool initAudio(stream_meta *info);
@@ -102,7 +100,7 @@ public:
     void releaseRawSource(bool local, int channel);
     void inputFrame(uint32_t channel, const mk_frame_t &frame);
     void updateMeta(bool local, int channel, stream_meta *info);
-    bool setupRecord(bool local, int channel, bool start = true);
+    bool setupRecord(bool local, input_type_t it, int channel, bool start = true);
 
     //pusher
     int addPusher(pusher_info *info);
@@ -113,7 +111,7 @@ public:
 
     //player
     int addPlayer(player_attr info);
-    void releasePlayer(bool remote, int channel);
+    void releasePlayer(bool remote, input_type_t it, int channel);
 
     //play service
     void setPlayService(play_service_attr *attr);
@@ -207,18 +205,6 @@ void UcastSourceHelper::initLocalSource(stream_meta *info) {
     _channel->addTrackCompleted();
 }
 
-void UcastSourceHelper::initPlaySource(play_info *info) {
-    _local_source = false;
-    //使用拉流播放作为输入源
-}
-
-//添加音视频，完成后调用addTrackCompleted
-void UcastSourceHelper::initSource(source_info *src_info) {
-    src_info->local ? 
-        initLocalSource(&src_info->local_src) :
-        initPlaySource(&src_info->play_src);
-}
-
 //-------------------------------------------------------------------------------
 
 DeviceHandle::DeviceHandle() {
@@ -257,17 +243,24 @@ void DeviceHandle::setDeviceCallback() {
     _device_helper->setOnPlayersChange([&](bool local, int players) {
         // DebugL << "on " << (local ? "local " : "remote ") << "players changed: " << players;
     });
-    //推流或者拉流找不到流，可以通知启动设备编码器，按需编码
+    //推流或者拉流找不到流，可以通知启动设备编码器，按需编码或者按需拉流
     _device_helper->setOnNotFoundStream([&](const std::string &url) {
-        string name = _source_helper->getStreamId();
-        if (url.find(name) == string::npos) {
-            return;
+        if (_source_helper) {
+            string name = _source_helper->getStreamId();
+            if (url.find(name) == string::npos) {
+                DebugL << "需要的流: " << url << ", 不是本地流";
+            }
         }
         //切换回自己的线程再执行
-        _poller->async([&, name](){
+        _poller->async([&, url](){
             if (_device_cb) {
-                int chn = getSourceChn(name);
-                _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_START_VIDEO, &chn);
+                int chn = getSourceChn(url);
+                //如果能找得到通道号，说明是设备流
+                if (-1 != chn) {
+                    _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_START_VIDEO, &chn);
+                } else {
+                    //TODO: 网络流，开始去拉流
+                }
             }
         }, false);
     });
@@ -291,12 +284,15 @@ void DeviceHandle::setDeviceCallback() {
     //流已经没有消费者了，此时可以通知编码器停止编码
     _device_helper->setOnNoReader([&](){
         DebugL << "On no reader";
+        if (_device_cb) {
+            int chn = getSourceChn(_source_helper->getStreamId());
+            _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_STOP_VIDEO, (void*)&chn);
+        }
     });
     //推拉流鉴权处理，设备上的推拉流不做鉴权，直接通过
     _device_helper->setOnAuthen([&](const string &url)->bool{
         return true;
     });
-
 }
 
 bool DeviceHandle::startup(mgw_context *ctx) {
@@ -409,7 +405,6 @@ bool DeviceHandle::startup(mgw_context *ctx) {
 
     //在这里监听事件，触发hook调用，比如鉴权，注册和注销流 事件
     EventProcess::Instance()->run();
-
     return true;
 }
 
@@ -452,13 +447,12 @@ bool DeviceHandle::hasSource(bool local, int channel) {
 }
 
 bool DeviceHandle::addRawSource(source_info *info) {
-    if (!_source_helper) {
-        string src_name = getSourceName(!info->local, info->channel, _device_helper->sn());
-        _source_helper = make_shared<UcastSourceHelper>(DEFAULT_VHOST, "live", src_name, _poller);
+    if (!info->remote && !_source_helper) {
+        string streamid = getStreamId(_device_helper->sn(), Location_Dev, (InputType)info->input_type, info->channel);
+        _source_helper = make_shared<UcastSourceHelper>(DEFAULT_VHOST, "live", streamid, _poller);
     }
 
-    // _source_helper->initSource(info);
-    if (info->local) {
+    if (info->input_type == INPUT_TYPE_PHY) {
         _video_eid = info->local_src.video_id;
     }
 
@@ -469,12 +463,12 @@ void DeviceHandle::releaseRawSource(bool local, int channel) {
 
 }
 
-bool DeviceHandle::setupRecord(bool local, int channel, bool start) {
-    string id = getSourceName(!local, channel, _device_helper->sn());
+bool DeviceHandle::setupRecord(bool local, input_type_t it, int channel, bool start) {
     if (local) {
-        auto src = MediaSource::find(DEFAULT_VHOST, "live", id);
+        string streamid = getStreamId(_device_helper->sn(), Location_Dev, (InputType)it, channel);
+        auto src = MediaSource::find(DEFAULT_VHOST, "live", streamid);
         if (!src) {
-            WarnL << "Not found the source:" << id;
+            WarnL << "Not found the source:" << streamid;
             return false;
         }
         return src->setupRecord(Recorder::type_mp4, start, "./record/", 60*60);
@@ -541,15 +535,19 @@ void DeviceHandle::updateMeta(bool local, int channel, stream_meta *info) {
 
 //pusher
 int DeviceHandle::addPusher(pusher_info *info) {
-    string src_name = getSourceName(info->src_remote, info->src_chn, _device_helper->sn());
+    string streamid = getStreamId(_device_helper->sn(),
+                        info->src_remote ? Location_Svr : Location_Dev,
+                        (InputType)info->src_type, info->src_chn);
+
     PusherInfo pusher_info(info);
-    ostringstream oss;
-    //注意，如果子串开头就是字符串开头，不要填入
-    oss << FindField(info->url, NULL, "://") << "://" << DEFAULT_VHOST << "/live/" << src_name;
-    MediaInfo media_info(oss.str());
     weak_ptr<DeviceHandle> weak_self = shared_from_this();
 
     if (!info->remote) {
+        ostringstream oss;
+        //注意，如果子串开头就是字符串开头，不要填入
+        oss << FindField(info->url, NULL, "://") << "://" << DEFAULT_VHOST << "/live/" << streamid;
+        MediaInfo media_info(oss.str());
+
         //TODO: 1.增加用户名和密码鉴权方式，2.增加ip地址直连方式(把vhost替换成ip)
         auto on_status_changed = [weak_self, pusher_info](const string &name, ChannelStatus status,
                         Time_t start_ts, const SockException &ex, void *userdata){
@@ -591,7 +589,7 @@ int DeviceHandle::addPusher(pusher_info *info) {
             return -2;
         }
         //切换到自己的线程再发送请求消息
-        _poller->async([weak_self, pusher_info, src_name](){
+        _poller->async([weak_self, pusher_info, streamid](){
             auto strong_self = weak_self.lock();
             if (!strong_self) { return; }
 
@@ -600,7 +598,8 @@ int DeviceHandle::addPusher(pusher_info *info) {
                             pusher_info.url, nullptr, nullptr, "", 0, pusher_info.userdata);
 
             //
-            strong_self->_ws_client->sendStartProxyPush(pusher_info.channel, pusher_info.url, getSourceChn(src_name));
+            strong_self->_ws_client->sendStartProxyPush(pusher_info.channel,
+                                        pusher_info.url, getSourceChn(streamid));
         }, false);
     }
     return 0;
@@ -625,52 +624,90 @@ void DeviceHandle::releaseTunnelPusher() {
     _device_helper->releasePusher(TUNNEL_PUSHER);
 }
 
+static mk_codec_id get_codec_id(CodecId id) {
+    switch (id) {
+        case CodecH264: return MK_CODEC_ID_H264;
+        case CodecH265: return MK_CODEC_ID_H265;
+        case CodecAAC: return MK_CODEC_ID_AAC;
+        default: { WarnL << "Not support codec: " << id; break; }
+    }
+    return MK_CODEC_ID_NONE;
+}
+
 //player
 int DeviceHandle::addPlayer(player_attr info) {
-    auto on_play_status = [&, info](const string &name, ChannelStatus status, Time_t start_ts, const SockException &ex){
-        if (!info.status_cb) {
-            return;
-        }
+    string streamid = getStreamId(_device_helper->sn(),
+                        info.remote ? Location_Svr : Location_Dev,
+                        (InputType)info.it, info.channel);
 
-        status_info sta;
-        sta.channel = info.channel;
-        sta.error = ex.getCustomCode();
-        sta.priv = NULL;
-        sta.remote = name.find('R') != string::npos;
-        sta.start_time = start_ts;
-        sta.status = (mk_status)status;
-        info.status_cb(info.channel, sta);
-    };
-
-    auto src_name = getSourceName(info.remote, info.channel, _device_helper->sn());
-    if (!info.data_cb) {
-        _device_helper->addPlayer(src_name, info.url, on_play_status, nullptr, info.netif, info.mtu);
-    } else {
-        auto on_play_data = [&, info](CodecId id, const char *data, uint32_t size, uint64_t dts, uint64_t pts, bool keyframe) {
-            if (!info.data_cb) {
+    if (!info.remote) {
+        auto on_play_status = [&, info](const string &name, ChannelStatus status,
+                                        Time_t start_ts, const SockException &ex){
+            if (!info.status_cb) {
                 return;
             }
-            mk_frame_t frame;
-            switch (id) {
-                case CodecH264: frame.id = MK_CODEC_ID_H264; break;
-                case CodecH265: frame.id = MK_CODEC_ID_H265; break;
-                case CodecAAC: frame.id = MK_CODEC_ID_AAC; break;
-                default: { WarnL << "Not support codec: " << id; return; }
-            }
-            frame.data = data;
-            frame.size = size;
-            frame.keyframe = keyframe;
-            frame.dts = dts;
-            frame.pts = pts;
-            info.data_cb(info.channel, frame);
+            status_info sta;
+            sta.channel = info.channel;
+            sta.error = ex.getCustomCode();
+            sta.priv = NULL;
+            sta.remote = name.find("_SVR_") != string::npos;
+            sta.start_time = start_ts;
+            sta.status = (mk_status)status;
+            info.status_cb(info.channel, sta);
         };
-        _device_helper->addPlayer(src_name, info.url, on_play_status, on_play_data, info.netif, info.mtu);
+        PlayHelper::onData on_play_data = nullptr;
+        PlayHelper::onMeta on_play_meta = nullptr;
+        if (info.data_cb) {
+            on_play_data = [&, info](CodecId id, const char *data,
+                    uint32_t size, uint64_t dts, uint64_t pts, bool keyframe) {
+                mk_frame_t frame;
+                frame.id = get_codec_id(id);
+                frame.data = data;
+                frame.size = size;
+                frame.keyframe = keyframe;
+                frame.dts = dts;
+                frame.pts = pts;
+                info.data_cb(info.channel, frame);
+            };
+        }
+        if (info.meta_cb) {
+            on_play_meta = [&, info](CodecId id, uint16_t width_chns,
+                    uint16_t height_samplerate, uint16_t fps_samplesize, uint16_t a_v_kbps) {
+                stream_meta meta = {};
+                if (id != CodecAAC) {
+                    meta.video_id = get_codec_id(id);
+                    meta.width = width_chns;
+                    meta.height = height_samplerate;
+                    meta.fps = fps_samplesize;
+                    meta.vkbps = a_v_kbps;
+                } else {
+                    meta.audio_id = MK_CODEC_ID_AAC;
+                    meta.channels = width_chns;
+                    meta.samplerate = height_samplerate;
+                    meta.samplesize = fps_samplesize;
+                    meta.akbps = a_v_kbps;
+                }
+                info.meta_cb(info.channel, INPUT_TYPE_PLA, meta);
+            };
+        }
+        _device_helper->addPlayer(streamid, info.remote, info.url,
+                        on_play_status, on_play_data, on_play_meta,
+                        info.netif?info.netif:"", info.mtu);
+    } else {
+        //TODO: 请求服务器代理拉流
     }
     return 0;
 }
 
-void DeviceHandle::releasePlayer(bool remote, int channel) {
-    _device_helper->releasePlayer(getSourceName(remote, channel, _device_helper->sn()));
+void DeviceHandle::releasePlayer(bool remote, input_type_t it, int channel) {
+    string streamid = getStreamId(_device_helper->sn(),
+                        remote ? Location_Svr : Location_Dev,
+                        (InputType)it, channel);
+    if (!remote) {
+        _device_helper->releasePlayer(streamid);
+    } else {
+        //TODO: 停止服务器代理拉流
+    }
 }
 
 //play service
@@ -743,20 +780,18 @@ void mgw_update_meta(mgw_handler_t *h, uint32_t channel, stream_meta *info) {
 }
 
 bool mgw_has_source(mgw_handler_t *h, bool local, uint32_t channel) {
-    // auto src = MediaSource::find(DEFAULT_VHOST, "live", getSourceName(!local, channel));
-    // return !!src;
     assert(h);
     return ((DeviceHandle::Ptr*)h)->get()->hasSource(local, channel);
 }
 
-void mgw_start_recorder(mgw_handler_t *h, bool local, uint32_t channel) {
+void mgw_start_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel) {
     assert(h);
-    ((DeviceHandle::Ptr*)h)->get()->setupRecord(local, channel, true);
+    ((DeviceHandle::Ptr*)h)->get()->setupRecord(local, it, channel, true);
 }
 
-void mgw_stop_recorder(mgw_handler_t *h, bool local, uint32_t channel) {
+void mgw_stop_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel) {
     assert(h);
-    ((DeviceHandle::Ptr*)h)->get()->setupRecord(local, channel, false);
+    ((DeviceHandle::Ptr*)h)->get()->setupRecord(local, it, channel, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -787,11 +822,13 @@ void mgw_release_tunnel_pusher(mgw_handler_t *h) {
 
 ///////////////////////////////////////////////////////////////////////////
 void mgw_set_play_service(mgw_handler_t *h, play_service_attr *attr) {
-
+    assert(h && attr);
+    ((DeviceHandle::Ptr*)h)->get()->setPlayService(attr);
 }
 
 void mgw_get_play_service(mgw_handler_t *h, play_service_attr *attr) {
-
+    assert(h && attr);
+    ((DeviceHandle::Ptr*)h)->get()->getPlayService(attr);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -800,7 +837,7 @@ void mgw_add_player(mgw_handler_t *h, player_attr attr) {
     ((DeviceHandle::Ptr*)h)->get()->addPlayer(attr);
 }
 
-void mgw_release_player(mgw_handler_t *h, bool remote, int channel) {
+void mgw_release_player(mgw_handler_t *h, bool remote, input_type_t it, int channel) {
     assert(h);
-    ((DeviceHandle::Ptr*)h)->get()->releasePlayer(remote, channel);
+    ((DeviceHandle::Ptr*)h)->get()->releasePlayer(remote, it, channel);
 }

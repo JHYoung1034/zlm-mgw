@@ -23,6 +23,10 @@ public:
                     ChannelStatus,Time_t, const toolkit::SockException &)>;
     /** id, data, size, dts, pts, keyframe */
     using onData = std::function<void (CodecId, const char*, uint32_t, uint64_t, uint64_t, bool)>;
+    /**Video: codecid, width, height, fps, vkbps
+     * Audio: codecid, channels, samplerate, samplesize, akbps
+    */
+    using onMeta = std::function<void (CodecId, uint16_t, uint16_t, uint16_t, uint16_t)>;
 
     /// @brief 创建一个播放器
     /// @param chn 播放器所属通道
@@ -39,8 +43,8 @@ public:
     /// @param url 网络url或者本地录像文件路径
     /// @param on_status_changed 播放状态变化回调
     /// @param on_data 播放帧数据回调
-    void start(const std::string &url, onStatusChanged on_status_changed, onData on_data);
-    void restart(const std::string &url, onStatusChanged on_status_changed, onData on_data);
+    void start(const std::string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta);
+    void restart(const std::string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta);
 
     /**
      * 获取观看总人数
@@ -80,8 +84,8 @@ private:
     int _max_retry;
     //播放状态回调
     onStatusChanged _on_status_changed;
-    //收到数据帧的时候，回调到外部
-    onData      _on_data;
+    //收到meta信息的时候，回调到外部
+    onMeta      _on_meta;
     //播放器流信息
     StreamInfo  _info;
     //重连定时器
@@ -99,15 +103,17 @@ private:
 class FrameIngest : public FrameWriterInterface, public std::enable_shared_from_this<FrameIngest> {
 public:
     using Ptr = std::shared_ptr<FrameIngest>;
-    FrameIngest(PlayHelper::onData on_data):_on_data(on_data){}
+    FrameIngest(PlayHelper::onData on_data, PlayHelper::onMeta on_meta)
+        :_on_data(on_data), _on_meta(on_meta) {}
 
     bool inputFrame(const Frame::Ptr &frame)override;
 
 private:
     PlayHelper::onData  _on_data = nullptr;
+    PlayHelper::onMeta  _on_meta = nullptr;
     CodecId             _video_eid = CodecInvalid;
     //用于合并视频帧，把vps，sps，pps和I帧合并成IDR帧再一起发送出去
-    FrameMerger _merge = {FrameMerger::mp4_nal_size};
+    FrameMerger _merge = {FrameMerger::h264_prefix};
 };
 
 }

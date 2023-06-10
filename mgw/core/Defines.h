@@ -3,6 +3,8 @@
 
 #define TUNNEL_PUSHER "TunnelPuhser"
 #define SHORT_SN_LEN    8
+//ErrorCode
+#define mgw_error(e) -(e)
 
 #include <inttypes.h>
 #include <string>
@@ -85,26 +87,25 @@ struct StreamInfo {
     std::string id;
 };
 
-typedef struct mgw_packet {
-    uint8_t         *data;
-    size_t          size;
-    int64_t         pts, dts;
-    int32_t         tbn, tbd;   //Timebase numerator, Timebase denominator
-    enum EncoderType    type;
-    enum EncoderId      eid;
-    bool            keyframe;
-    uint8_t         audio_track;    //音频可能有多个track
-}mgw_packet;
-
-//ErrorCode
-#define mgw_error(e) -(e)
-
-std::string getOutputName(bool remote, uint32_t chn);
-std::string getSourceName(bool remote, uint32_t chn, const std::string &sn);
-
-int getOutputChn(const std::string &name);
+enum StreamLocation {
+    Location_Dev = 0,
+    Location_Svr,
+};
+enum InputType {
+    InputType_None = 0,
+    InputType_Phy,
+    InputType_Pla,
+    InputType_Rec,
+    InputType_Pub,
+};
+//调用getStreamId()得到输入源名字，即流id
 int getSourceChn(const std::string &name);
-
+std::string getStreamId(const std::string &sn, StreamLocation location, InputType itype, uint32_t chn);
+void parseStreamId(const std::string &id, std::string &sn, StreamLocation &location,InputType &itype, uint32_t &chn);
+//输出名字
+std::string getOutputName(bool remote, uint32_t chn);
+int getOutputChn(const std::string &name);
+//url添加端口号
 void urlAddPort(std::string &url, uint16_t port);
 
 #endif  //__MGW_DEFINES_H__
