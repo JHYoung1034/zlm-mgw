@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-namespace mediakit {
+namespace MGW {
 
 class U727 : public std::enable_shared_from_this<U727> {
 public:

@@ -2,8 +2,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 PushHelper::PushHelper(const string &name, int channel) : _retry_count(-1) {
     _info.channel = channel == -1 ? getOutputChn(name) : channel;

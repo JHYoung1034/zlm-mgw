@@ -4,7 +4,7 @@
 
 #include "Message.h"
 
-namespace mediakit {
+namespace MGW {
 
 //websocket 交付的是完整的消息，不需要继承HttpRequestSplitter去判断消息分片边界
 class MessageCodec {

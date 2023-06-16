@@ -3,7 +3,7 @@
 
 #include <memory>
 
-namespace mediakit {
+namespace MGW {
 
 //此类用于监听事件，并根据mgw业务处理这些事件
 class EventProcess {

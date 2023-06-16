@@ -8,8 +8,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 U727Session::U727Session(const Socket::Ptr &sock)
     : Session(sock), MessageCodec(Entity_MgwServer),

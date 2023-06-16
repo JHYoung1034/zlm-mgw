@@ -5,6 +5,7 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
 /**< u727实例必须和u727消息会话绑定在同一个线程上，在其他地方调用u727实例，
  *   比如说设备调用发送通知的时候，必须切换到u727绑定的线程再发送通知，
@@ -20,7 +21,7 @@ using namespace toolkit;
  *   对u727实例的单向调用选择消息通知方式。而u727调用设备实例可以直接查找后调用。
 */
 
-namespace mediakit {
+namespace MGW {
 
 static inline string gen_access_token(void *addr)
 {

@@ -7,12 +7,12 @@
 #include "Extension/Frame.h"
 #include "Defines.h"
 
-namespace mediakit {
+namespace MGW {
 
 class FrameIngest;
 
 //此类用于处理播放，可以播放本地录像文件，可以播放网络流
-class PlayHelper : public MediaPlayer, public MediaSourceEvent, public std::enable_shared_from_this<PlayHelper> {
+class PlayHelper : public mediakit::MediaPlayer, public mediakit::MediaSourceEvent, public std::enable_shared_from_this<PlayHelper> {
 public:
     using Ptr = std::shared_ptr<PlayHelper>;
 
@@ -22,11 +22,11 @@ public:
     using onStatusChanged = std::function<void(const std::string&,
                     ChannelStatus,Time_t, const toolkit::SockException &)>;
     /** id, data, size, dts, pts, keyframe */
-    using onData = std::function<void (CodecId, const char*, uint32_t, uint64_t, uint64_t, bool)>;
+    using onData = std::function<void (mediakit::CodecId, const char*, uint32_t, uint64_t, uint64_t, bool)>;
     /**Video: codecid, width, height, fps, vkbps
      * Audio: codecid, channels, samplerate, samplesize, akbps
     */
-    using onMeta = std::function<void (CodecId, uint16_t, uint16_t, uint16_t, uint16_t)>;
+    using onMeta = std::function<void (mediakit::CodecId, uint16_t, uint16_t, uint16_t, uint16_t)>;
 
     /// @brief 创建一个播放器
     /// @param chn 播放器所属通道
@@ -56,12 +56,12 @@ public:
     bool isLocalInput() const { return _is_local_input; }
 private:
     //MediaSourceEvent override
-    bool close(MediaSource &sender) override;
-    int totalReaderCount(MediaSource &sender) override;
-    MediaOriginType getOriginType(MediaSource &sender) const override;
-    std::string getOriginUrl(MediaSource &sender) const override;
-    std::shared_ptr<toolkit::SockInfo> getOriginSock(MediaSource &sender) const override;
-    float getLossRate(MediaSource &sender, TrackType type) override;
+    bool close(mediakit::MediaSource &sender) override;
+    int totalReaderCount(mediakit::MediaSource &sender) override;
+    mediakit::MediaOriginType getOriginType(mediakit::MediaSource &sender) const override;
+    std::string getOriginUrl(mediakit::MediaSource &sender) const override;
+    std::shared_ptr<toolkit::SockInfo> getOriginSock(mediakit::MediaSource &sender) const override;
+    float getLossRate(mediakit::MediaSource &sender, mediakit::TrackType type) override;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     void startFromFile(const std::string &file);
@@ -91,29 +91,29 @@ private:
     //重连定时器
     toolkit::Timer::Ptr _timer;
     //转换成允许的协议
-    ProtocolOption _option;
+    mediakit::ProtocolOption _option;
     //网络拉流，或者从录像文件输入得到的源
-    MultiMediaSourceMuxer::Ptr _muxer;
+    mediakit::MultiMediaSourceMuxer::Ptr _muxer;
     //播放数据帧摄取
     std::shared_ptr<FrameIngest> _ingest = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////////////
 //此类用于摄取播放器帧数据
-class FrameIngest : public FrameWriterInterface, public std::enable_shared_from_this<FrameIngest> {
+class FrameIngest : public mediakit::FrameWriterInterface, public std::enable_shared_from_this<FrameIngest> {
 public:
     using Ptr = std::shared_ptr<FrameIngest>;
     FrameIngest(PlayHelper::onData on_data, PlayHelper::onMeta on_meta)
         :_on_data(on_data), _on_meta(on_meta) {}
 
-    bool inputFrame(const Frame::Ptr &frame)override;
+    bool inputFrame(const mediakit::Frame::Ptr &frame)override;
 
 private:
     PlayHelper::onData  _on_data = nullptr;
     PlayHelper::onMeta  _on_meta = nullptr;
-    CodecId             _video_eid = CodecInvalid;
+    mediakit::CodecId   _video_eid = mediakit::CodecInvalid;
     //用于合并视频帧，把vps，sps，pps和I帧合并成IDR帧再一起发送出去
-    FrameMerger _merge = {FrameMerger::h264_prefix};
+    mediakit::FrameMerger _merge = {mediakit::FrameMerger::h264_prefix};
 };
 
 }

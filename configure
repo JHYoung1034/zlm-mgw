@@ -172,6 +172,8 @@ for opt do
                 ;;
                 A5|Q8S) cross_prefix="arm-linux-gnueabihf-"
                 ;;
+                A318) cross_prefix="aarch64-buildroot-linux-gnu-"
+                ;;
                 *)
                     SERVER=1
                 ;;
@@ -217,6 +219,8 @@ protoc_obj=${project_dir}/mgw/3rdparty/install/bin/protoc
 if [ $PROJECT = 'Q8' ];then
     protoc_obj=${CROSS_3RD_PATH}/bin/protoc
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CROSS_3RD_PATH}/lib
+elif [ $PROJECT = 'A318' ];then
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${project_dir}/mgw/3rdparty/install/lib
 else
     export LD_LIBRARY_PATH=${project_dir}/mgw/3rdparty/install/lib
 fi

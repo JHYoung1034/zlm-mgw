@@ -8,8 +8,7 @@
 using namespace std;
 using namespace toolkit;
 
-
-namespace mediakit {
+namespace MGW {
 
 MessageCodec::MessageCodec(Entity entity) : _entity(entity) {
     _session_id = entity == Entity_MgwServer ? createSessionId() : 0;

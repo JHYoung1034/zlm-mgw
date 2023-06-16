@@ -5,8 +5,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 Session::Ptr MessageSessionCreator::operator()(const Parser &header,
                 const HttpSession &parent, const Socket::Ptr &pSock) {

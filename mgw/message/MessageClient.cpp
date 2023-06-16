@@ -6,8 +6,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 MessageClient::MessageClient(const EventPoller::Ptr &poller,
         Entity entity, const DeviceHelper::Ptr &ptr)

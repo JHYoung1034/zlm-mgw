@@ -21,6 +21,7 @@
 using namespace std;
 using namespace toolkit;
 using namespace mediakit;
+using namespace MGW;
 
 //TODO: 注意，为了防止线程竞争问题，所有的操作都要转移到本线程_poller上来
 
@@ -41,10 +42,11 @@ struct PusherInfo {
         }
         if (info->key) {
             //去掉key前面的'/'
+            int pos = 0;
             if (info->key[0] == '/') {
-                info->key += 1;
+                pos = 1;
             }
-            url += string("/") + info->key;
+            url += string("/") + (info->key+pos);
         }
 
         remote = info->remote;
@@ -65,16 +67,12 @@ public:
 
     DevChannel::Ptr &getChannel() { return _channel; }
 
-    //添加音视频，完成后调用addTrackCompleted
-    void initLocalSource(stream_meta *info);
-
-    bool initVideo(stream_meta *info);
-    bool initAudio(stream_meta *info);
+    bool initVideo(track_info info);
+    bool initAudio(track_info info);
 
     string getStreamId() { return _stream_id; }
 
 private:
-    bool                _local_source;
     string              _stream_id;
     EventPoller::Ptr    _poller;
     DevChannel::Ptr     _channel;
@@ -95,11 +93,13 @@ public:
     void disconnect();
     bool messageAvailable();
     //source
-    bool hasSource(bool local, int channel);
-    bool addRawSource(source_info *info);
+    bool hasRawVideo(uint32_t channel);
+    bool hasRawAudio(uint32_t channel);
+    bool addRawVideo(uint32_t channel, track_info info);
+    bool addRawAudio(uint32_t channel, track_info info);
     void releaseRawSource(bool local, int channel);
     void inputFrame(uint32_t channel, const mk_frame_t &frame);
-    void updateMeta(bool local, int channel, stream_meta *info);
+    void updateMeta(bool local, int channel, track_info info);
     bool setupRecord(bool local, input_type_t it, int channel, bool start = true);
 
     //pusher
@@ -120,6 +120,10 @@ public:
 private:
     void setDeviceCallback();
 
+    template<typename T>
+    void startTcpServer(uint16_t port);
+    void setService(uint16_t port, const string &schema, bool stop, bool stop_all);
+
 private:
     bool                _have_session_rsp = false;
     mk_codec_id         _video_eid = MK_CODEC_ID_NONE;
@@ -127,13 +131,16 @@ private:
     EventPoller::Ptr    _poller = nullptr;
     //设备管理
     DeviceHelper::Ptr   _device_helper = nullptr;
-    //tcp 服务，rtsp，rtmp，http
-    unordered_map<uint16_t, TcpServer::Ptr> _svr_map;
+    //tcp 服务器，rtsp，rtmp，http
+    mutex               _svr_mutex;
+    unordered_map<uint16_t/*port*/, pair<TcpServer::Ptr, bool/*access*/>> _svr_map;
+    //
     //媒体源管理
-    UcastSourceHelper::Ptr _source_helper = nullptr;
+    mutex               _src_mutex;
+    unordered_map<int, UcastSourceHelper::Ptr>  _sources;
     /*----------------------------------------------*/
     mgw_callback        _device_cb = NULL;
-    /*-----------------ws信息----------------------------*/
+    /*-----------------ws信息------------------------*/
     uint16_t            _ka_sec;
     uint16_t            _mtu;
     string              _netif;
@@ -148,7 +155,7 @@ static DeviceHandle::Ptr *obj = nullptr;
 //-------------------------------------------------------------------------------
 UcastSourceHelper::UcastSourceHelper(const string &vhost, const string &app,
                 const string &id, const EventPoller::Ptr &poller)
-                : _local_source(true), _stream_id(id) {
+                : _stream_id(id) {
     _poller = poller ? poller : EventPollerPool::Instance().getPoller();
     _poller->sync([&]() { _channel = make_shared<DevChannel>(vhost, app, id); });
 }
@@ -156,21 +163,21 @@ UcastSourceHelper::~UcastSourceHelper() {
 
 }
 
-bool UcastSourceHelper::initVideo(stream_meta *info) {
+bool UcastSourceHelper::initVideo(track_info info) {
     VideoInfo vinfo;
-    if (info->video_id == MK_CODEC_ID_H264) {
+    if (info.id == MK_CODEC_ID_H264) {
         vinfo.codecId = CodecH264;
-    } else if (info->video_id == MK_CODEC_ID_H265) {
+    } else if (info.id == MK_CODEC_ID_H265) {
         vinfo.codecId = CodecH265;
     } else {
-        WarnL << "Not support this video codecid: " << info->video_id;
+        WarnL << "Not support this video codecid: " << info.id;
         return false;
     }
 
-    vinfo.iFrameRate = info->fps;
-    vinfo.iWidth = info->width;
-    vinfo.iHeight = info->height;
-    vinfo.iBitRate = info->vkbps*1000;
+    vinfo.iFrameRate = info.video.fps;
+    vinfo.iWidth = info.video.width;
+    vinfo.iHeight = info.video.height;
+    vinfo.iBitRate = info.video.vkbps*1000;
     DebugL << "Add video track id: " << vinfo.codecId << " fps: " <<
                 vinfo.iFrameRate << " width: " << vinfo.iWidth << " height: " << 
                 vinfo.iHeight << " bitrate: " << vinfo.iBitRate;
@@ -178,31 +185,22 @@ bool UcastSourceHelper::initVideo(stream_meta *info) {
     return _channel->initVideo(vinfo);
 }
 
-bool UcastSourceHelper::initAudio(stream_meta *info) {
+bool UcastSourceHelper::initAudio(track_info info) {
     //加载音频
-    if (info->audio_id != MK_CODEC_ID_AAC) {
-        WarnL << "Not support this audio codecid: " << info->audio_id;
+    if (info.id != MK_CODEC_ID_AAC) {
+        WarnL << "Not support this audio codecid: " << info.id;
         return false;
     }
 
     AudioInfo ainfo;
     ainfo.codecId = CodecAAC;
-    ainfo.iSampleRate = info->samplerate;
-    ainfo.iChannel = info->channels;
-    ainfo.iSampleBit = info->samplesize;
+    ainfo.iSampleRate = info.audio.samplerate;
+    ainfo.iChannel = info.audio.channels;
+    ainfo.iSampleBit = info.audio.samplesize;
     DebugL << "Add audio track id: " << ainfo.codecId << " chn: " <<
             ainfo.iChannel << " sr: " << ainfo.iSampleRate << " sb: " << ainfo.iSampleBit;
     _channel->initAudio(ainfo);
     return true;
-}
-
-void UcastSourceHelper::initLocalSource(stream_meta *info) {
-    _local_source = true;
-    initVideo(info);
-    initAudio(info);
-    //完成音视频加载, 其实不需要手动设置完成音视频加载注册，内部会根据有没有音视频帧输入判断
-    //如果音视频都有帧输入了，会自动注册source
-    _channel->addTrackCompleted();
 }
 
 //-------------------------------------------------------------------------------
@@ -245,12 +243,6 @@ void DeviceHandle::setDeviceCallback() {
     });
     //推流或者拉流找不到流，可以通知启动设备编码器，按需编码或者按需拉流
     _device_helper->setOnNotFoundStream([&](const std::string &url) {
-        if (_source_helper) {
-            string name = _source_helper->getStreamId();
-            if (url.find(name) == string::npos) {
-                DebugL << "需要的流: " << url << ", 不是本地流";
-            }
-        }
         //切换回自己的线程再执行
         _poller->async([&, url](){
             if (_device_cb) {
@@ -282,17 +274,104 @@ void DeviceHandle::setDeviceCallback() {
         }
     });
     //流已经没有消费者了，此时可以通知编码器停止编码
-    _device_helper->setOnNoReader([&](){
+    _device_helper->setOnNoReader([&](const string &id){
         DebugL << "On no reader";
         if (_device_cb) {
-            int chn = getSourceChn(_source_helper->getStreamId());
+            int chn = getSourceChn(id);
             _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_STOP_VIDEO, (void*)&chn);
         }
     });
     //推拉流鉴权处理，设备上的推拉流不做鉴权，直接通过
     _device_helper->setOnAuthen([&](const string &url)->bool{
-        return true;
+        bool access = false;
+        if (url.substr(0, 4) == "rtmp") {
+            uint16_t port = mINI::Instance()[Rtmp::kPort];
+            lock_guard<mutex> lock(_svr_mutex);
+            auto it = _svr_map.find(port);
+            if (it != _svr_map.end() && it->second.second) {
+                access = true;
+            }
+        } else if (url.substr(0, 5) == "rtmps") {
+            uint16_t port = mINI::Instance()[Rtmp::kSSLPort];
+            lock_guard<mutex> lock(_svr_mutex);
+            auto it = _svr_map.find(port);
+            if (it != _svr_map.end() && it->second.second) {
+                access = true;
+            }
+        } else if (url.substr(0, 4) == "rtsp") {
+            uint16_t port = mINI::Instance()[Rtsp::kPort];
+            lock_guard<mutex> lock(_svr_mutex);
+            auto it = _svr_map.find(port);
+            if (it != _svr_map.end() && it->second.second) {
+                access = true;
+            }
+        } else if (url.substr(0, 5) == "rtsps") {
+            uint16_t port = mINI::Instance()[Rtsp::kSSLPort];
+            lock_guard<mutex> lock(_svr_mutex);
+            auto it = _svr_map.find(port);
+            if (it != _svr_map.end() && it->second.second) {
+                access = true;
+            }
+        } else if (url.substr(0, 4) == "http") {
+            uint16_t port = mINI::Instance()[Http::kPort];
+            lock_guard<mutex> lock(_svr_mutex);
+            auto it = _svr_map.find(port);
+            if (it != _svr_map.end() && it->second.second) {
+                access = true;
+            }
+        } else if (url.substr(0, 5) == "https") {
+            uint16_t port = mINI::Instance()[Http::kSSLPort];
+            lock_guard<mutex> lock(_svr_mutex);
+            auto it = _svr_map.find(port);
+            if (it != _svr_map.end() && it->second.second) {
+                access = true;
+            }
+        }
+
+        return access;
     });
+}
+
+template<typename T>
+void DeviceHandle::startTcpServer(uint16_t port) {
+    auto svr = make_shared<TcpServer>();
+    if (port && svr) {
+        svr->start<T>(port);
+        lock_guard<mutex> lock(_svr_mutex);
+        _svr_map[port] = make_pair(svr, true);
+    }
+}
+
+void DeviceHandle::setService(uint16_t port, const string &schema, bool stop, bool stop_all) {
+    auto it = _svr_map.find(port);
+    if (it != _svr_map.end()) {
+        lock_guard<mutex> lock(_svr_mutex);
+        if (stop && it->second.second) {
+            it->second.second = false;
+            if (stop_all) {
+                _svr_map.erase(port);
+            }
+        } else if (!stop && !it->second.second) {
+            it->second.second = true;
+        }
+    } else {
+        //map中没有这个服务，要求打开这个服务
+        if (!stop) {
+            if (0 == schema.compare("rtmp")) {
+                startTcpServer<RtmpSession>(port);
+            } else if (0 == schema.compare("rtmps")) {
+                startTcpServer<RtmpSessionWithSSL>(port);
+            } else if (0 == schema.compare("rtsp")) {
+                startTcpServer<RtspSession>(port);
+            } else if (0 == schema.compare("rtsps")) {
+                startTcpServer<RtspSessionWithSSL>(port);
+            } else if (0 == schema.compare("http")) {
+                startTcpServer<HttpSession>(port);
+            } else if (0 == schema.compare("https")) {
+                startTcpServer<HttpsSession>(port);
+            }
+        }
+    }
 }
 
 bool DeviceHandle::startup(mgw_context *ctx) {
@@ -376,26 +455,12 @@ bool DeviceHandle::startup(mgw_context *ctx) {
     // uint16_t rtpPort = mINI::Instance()[RtpProxy::kPort];
 
     try {
-        _svr_map.emplace(rtspPort, make_shared<TcpServer>());
-        _svr_map.emplace(rtspsPort, make_shared<TcpServer>());
-        _svr_map.emplace(rtmpPort, make_shared<TcpServer>());
-        _svr_map.emplace(rtmpsPort, make_shared<TcpServer>());
-        _svr_map.emplace(httpPort, make_shared<TcpServer>());
-        _svr_map.emplace(httpsPort, make_shared<TcpServer>());
-
-        //rtsp服务器，端口默认554
-        if (rtspPort) { _svr_map[rtspPort]->start<RtspSession>(rtspPort); }
-        //rtsps服务器，端口默认322
-        if (rtspsPort) { _svr_map[rtspsPort]->start<RtspSessionWithSSL>(rtspsPort); }
-        //rtmp服务器，端口默认1935
-        if (rtmpPort) { _svr_map[rtmpPort]->start<RtmpSession>(rtmpPort); }
-        //rtmps服务器，端口默认19350
-        if (rtmpsPort) { _svr_map[rtmpsPort]->start<RtmpSessionWithSSL>(rtmpsPort); }
-        //http服务器，端口默认80
-        if (httpPort) { _svr_map[httpPort]->start<HttpSession>(httpPort); }
-        //https服务器，端口默认443
-        if (httpsPort) { _svr_map[httpsPort]->start<HttpsSession>(httpsPort); }
-
+        startTcpServer<RtspSession>(rtspPort);          //rtsp服务器，端口默认554
+        startTcpServer<RtspSessionWithSSL>(rtspsPort);  //rtsps服务器，端口默认332
+        startTcpServer<RtmpSession>(rtmpPort);          //rtmp服务器，端口默认1935
+        startTcpServer<RtmpSessionWithSSL>(rtmpsPort);  //rtmps服务器，端口默认19350
+        startTcpServer<HttpSession>(httpPort);          //http服务器，端口默认80
+        startTcpServer<HttpsSession>(httpsPort);        //https服务器，端口默认443
     } catch (exception &ex) {
         WarnL << "端口占用或无权限:" << ex.what() << endl;
         ErrorL << "程序启动失败，请修改配置文件中端口号后重试!" << endl;
@@ -442,21 +507,24 @@ bool DeviceHandle::messageAvailable() {
 
 /////////////////////////////////////////////////////////////////////////////////////
 ///source
-bool DeviceHandle::hasSource(bool local, int channel) {
-    return !!_source_helper;
+
+bool DeviceHandle::hasRawVideo(uint32_t channel) {
+    lock_guard<mutex> lock(_src_mutex);
+    auto source = _sources[channel];
+    if (!source) {
+        return false;
+    }
+    return source->getChannel()->haveVideo();
 }
 
-bool DeviceHandle::addRawSource(source_info *info) {
-    if (!info->remote && !_source_helper) {
-        string streamid = getStreamId(_device_helper->sn(), Location_Dev, (InputType)info->input_type, info->channel);
-        _source_helper = make_shared<UcastSourceHelper>(DEFAULT_VHOST, "live", streamid, _poller);
+bool DeviceHandle::hasRawAudio(uint32_t channel) {
+    lock_guard<mutex> lock(_src_mutex);
+    auto source = _sources[channel];
+    if (!source) {
+        return false;
     }
-
-    if (info->input_type == INPUT_TYPE_PHY) {
-        _video_eid = info->local_src.video_id;
-    }
-
-    return true;
+    return source->getChannel()->getTrack(TrackAudio) ||
+           source->getChannel()->getTrack(TrackAudio, false);
 }
 
 void DeviceHandle::releaseRawSource(bool local, int channel) {
@@ -479,10 +547,18 @@ bool DeviceHandle::setupRecord(bool local, input_type_t it, int channel, bool st
 }
 
 void DeviceHandle::inputFrame(uint32_t channel, const mk_frame_t &frame) {
-    auto chn  = _source_helper->getChannel();
-    if (!chn) {
-        return;
+    UcastSourceHelper::Ptr source = nullptr;
+    {
+        lock_guard<mutex> lock(_src_mutex);
+        source = _sources[channel];
+        if (!source) {
+            string id = getStreamId(_device_helper->sn(), Location_Dev, InputType_Phy, channel);
+            source = make_shared<UcastSourceHelper>(DEFAULT_VHOST, "live", id, _poller);
+            _sources.emplace(channel, source);
+        }
     }
+
+    auto chn  = source->getChannel();
     if (frame.id != MK_CODEC_ID_AAC && frame.id != _video_eid) {
         WarnL << "frame eid: " << frame.id << " old eid:" << _video_eid;
         return;
@@ -492,9 +568,10 @@ void DeviceHandle::inputFrame(uint32_t channel, const mk_frame_t &frame) {
         case MK_CODEC_ID_H264:
         case MK_CODEC_ID_H265: {
             if (!chn->getTrack(TrackVideo, false) && !chn->getTrack(TrackVideo, true) && _device_cb) {
-                stream_meta meta = {};
+                track_info meta = {};
+                meta.id = frame.id;
                 _device_cb((mgw_handler_t*)obj, MK_EVENT_GET_STREAM_META, (void*)&meta);
-                if (!_source_helper->initVideo(&meta)) {
+                if (!source->initVideo(meta)) {
                     return;
                 }
             }
@@ -505,9 +582,9 @@ void DeviceHandle::inputFrame(uint32_t channel, const mk_frame_t &frame) {
         }
         case MK_CODEC_ID_AAC: {
             if (!chn->getTrack(TrackAudio, false) && !chn->getTrack(TrackAudio, true) && _device_cb) {
-                stream_meta meta = {};
+                track_info meta = {};
                 _device_cb((mgw_handler_t*)obj, MK_EVENT_GET_STREAM_META, (void*)&meta);
-                if (!_source_helper->initAudio(&meta)) {
+                if (!source->initAudio(meta)) {
                     return;
                 }
             }
@@ -522,14 +599,21 @@ void DeviceHandle::inputFrame(uint32_t channel, const mk_frame_t &frame) {
     }
 }
 
-void DeviceHandle::updateMeta(bool local, int channel, stream_meta *info) {
-    auto chn = _source_helper->getChannel();
-    if (info->video_id != _video_eid) {
-        _video_eid = info->video_id;
+void DeviceHandle::updateMeta(bool local, int channel, track_info info) {
+    lock_guard<mutex> lock(_src_mutex);
+    auto source = _sources[channel];
+    if (!source) {
+        return;
+    }
+
+    auto chn = source->getChannel();
+    if ((info.id == MK_CODEC_ID_H264 ||
+         info.id == MK_CODEC_ID_H265) && info.id != _video_eid) {
+        _video_eid = info.id;
         //reset 所有的track，原来所有的输出就会失效，所以在还有消费者的时候，不允许更改编码器类型
         chn->resetTracks();
         //需要重新初始化
-        _source_helper->initLocalSource(info);
+        source->initVideo(info);
     }
 }
 
@@ -673,19 +757,19 @@ int DeviceHandle::addPlayer(player_attr info) {
         if (info.meta_cb) {
             on_play_meta = [&, info](CodecId id, uint16_t width_chns,
                     uint16_t height_samplerate, uint16_t fps_samplesize, uint16_t a_v_kbps) {
-                stream_meta meta = {};
+                track_info meta = {};
                 if (id != CodecAAC) {
-                    meta.video_id = get_codec_id(id);
-                    meta.width = width_chns;
-                    meta.height = height_samplerate;
-                    meta.fps = fps_samplesize;
-                    meta.vkbps = a_v_kbps;
+                    meta.id = get_codec_id(id);
+                    meta.video.width = width_chns;
+                    meta.video.height = height_samplerate;
+                    meta.video.fps = fps_samplesize;
+                    meta.video.vkbps = a_v_kbps;
                 } else {
-                    meta.audio_id = MK_CODEC_ID_AAC;
-                    meta.channels = width_chns;
-                    meta.samplerate = height_samplerate;
-                    meta.samplesize = fps_samplesize;
-                    meta.akbps = a_v_kbps;
+                    meta.id = MK_CODEC_ID_AAC;
+                    meta.audio.channels = width_chns;
+                    meta.audio.samplerate = height_samplerate;
+                    meta.audio.samplesize = fps_samplesize;
+                    meta.audio.akbps = a_v_kbps;
                 }
                 info.meta_cb(info.channel, INPUT_TYPE_PLA, meta);
             };
@@ -710,13 +794,79 @@ void DeviceHandle::releasePlayer(bool remote, input_type_t it, int channel) {
     }
 }
 
+static uint16_t get_port(const string &schema) {
+    uint16_t port = 0;
+    if (0 == schema.compare("rtmp")) {
+        port = mINI::Instance()[Rtmp::kPort];
+    } else if (0 == schema.compare("rtmps")) {
+        port = mINI::Instance()[Rtmp::kSSLPort];
+    } else if (0 == schema.compare("rtsp")) {
+        port = mINI::Instance()[Rtsp::kPort];
+    } else if (0 == schema.compare("rtsps")) {
+        port = mINI::Instance()[Rtsp::kSSLPort];
+    } else if (0 == schema.compare("http")) {
+        port = mINI::Instance()[Http::kPort];
+    } else if (0 == schema.compare("https")) {
+        port = mINI::Instance()[Http::kSSLPort];
+    }
+    return port;
+}
+
 //play service
 void DeviceHandle::setPlayService(play_service_attr *attr) {
+    if (!attr->schema) {
+        return;
+    }
+    string schema = attr->schema;
+    bool stop = attr->stop;
+    bool stop_all = attr->stop_all;
+    bool local = attr->local_service;
+    weak_ptr<DeviceHandle> weak_self = shared_from_this();
 
+    _poller->async([weak_self, local, schema, stop, stop_all](){
+        auto strong_self = weak_self.lock();
+        if (!strong_self) { return; }
+
+        if (local) {
+            uint16_t port = get_port(schema);
+            strong_self->setService(port, schema, stop, stop_all);
+        } else {
+            //发送消息设置mgw-server服务
+        }
+    });
 }
 
 void DeviceHandle::getPlayService(play_service_attr *attr) {
+    if (!attr->schema) {
+        return;
+    }
 
+    if (attr->local_service) {
+        uint16_t port = get_port(attr->schema);
+        lock_guard<mutex> lock(_svr_mutex);
+        auto it = _svr_map.find(port);
+        if (it == _svr_map.end()) {
+            attr->stop = true;
+            attr->stop_all = true;
+            return;
+        }
+        attr->stop_all = false;
+        attr->stop = it->second.second;
+        {
+            lock_guard<mutex> lock(_src_mutex);
+            auto source = _sources[attr->src_chn];
+            if (source) {
+                attr->players = source->getChannel()->totalReaderCount();
+            }
+        }
+
+        stringstream oss;
+        oss << attr->schema << "://" << mINI::Instance()[Mgw::kOutHostIP] << "/live/";
+        oss << getStreamId(_device_helper->sn(), Location_Dev, InputType_Phy, 0);
+        attr->play_url = strdup(oss.str().c_str());
+    } else {
+        //返回mgw-server同步来的信息
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -757,12 +907,6 @@ bool mgw_server_available(mgw_handler_t *h) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-int mgw_add_source(mgw_handler_t *h, source_info *info) {
-    assert(h && info);
-    bool ret = ((DeviceHandle::Ptr*)h)->get()->addRawSource(info);
-    return ret ? 0 : -1;
-}
-
 int mgw_input_packet(mgw_handler_t *h, uint32_t channel, mk_frame_t frame) {
     assert(h);
     ((DeviceHandle::Ptr*)h)->get()->inputFrame(channel, frame);
@@ -774,16 +918,23 @@ void mgw_release_source(mgw_handler_t *h, bool local, uint32_t channel) {
     ((DeviceHandle::Ptr*)h)->get()->releaseRawSource(local, channel);
 }
 
-void mgw_update_meta(mgw_handler_t *h, uint32_t channel, stream_meta *info) {
-    assert(h && info);
+void mgw_update_meta(mgw_handler_t *h, uint32_t channel, track_info info) {
+    assert(h);
     ((DeviceHandle::Ptr*)h)->get()->updateMeta(true, channel, info);
 }
 
-bool mgw_has_source(mgw_handler_t *h, bool local, uint32_t channel) {
+bool mgw_have_raw_video(mgw_handler_t *h, uint32_t channel) {
     assert(h);
-    return ((DeviceHandle::Ptr*)h)->get()->hasSource(local, channel);
+    return ((DeviceHandle::Ptr*)h)->get()->hasRawVideo(channel);
 }
 
+bool mgw_have_raw_audio(mgw_handler_t *h, uint32_t channel) {
+    assert(h);
+    return ((DeviceHandle::Ptr*)h)->get()->hasRawAudio(channel);
+}
+
+//-----------------------------------------------------------------------------------------------
+//record
 void mgw_start_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel) {
     assert(h);
     ((DeviceHandle::Ptr*)h)->get()->setupRecord(local, it, channel, true);

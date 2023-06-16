@@ -8,8 +8,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 DeviceSession::DeviceSession(const Socket::Ptr &sock)
     : Session(sock), MessageCodec(Entity_MgwServer) {
@@ -61,7 +62,7 @@ void DeviceSession::onMessage(MessagePacket::Ptr msg_pkt) {
 
 void DeviceSession::setEventHandle() {
     weak_ptr<DeviceSession> weak_self = dynamic_pointer_cast<DeviceSession>(shared_from_this());
-    _device_helper->setOnNoReader([weak_self](){
+    _device_helper->setOnNoReader([weak_self](const string &id){
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
@@ -69,12 +70,13 @@ void DeviceSession::setEventHandle() {
 
         //设备到mgw-server的流当前已经没有消费者了，通知设备停止传输这个流
         //切换回此设备会话线程再处理消息发送
-        strong_self->getPoller()->async([weak_self](){
+        strong_self->getPoller()->async([weak_self, id](){
             auto strong_self = weak_self.lock();
             if (!strong_self) {
                 return;
             }
-            strong_self->sendStopTunnelPush(0);
+            int chn = getSourceChn(id);
+            strong_self->sendStopTunnelPush(chn);
         }, false);
     });
 

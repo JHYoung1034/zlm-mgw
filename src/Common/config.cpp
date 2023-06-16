@@ -371,11 +371,11 @@ const string kPlayTrack = "play_track";
 //mgw 业务配置
 namespace WsCli {
 #define WS_CLI_FIELD "ws_cli."
-const string kPath = WS_CLI_FIELD "path";
+const string kUrl = WS_CLI_FIELD "path";
 const string kPingSec = WS_CLI_FIELD "pingSec";
 
 static onceToken token([]() {
-    mINI::Instance()[kPath] = "/mgw/ws";
+    mINI::Instance()[kUrl] = "ws://172.0.0.1:7767/mgw/ws";
     mINI::Instance()[kPingSec] = 10;
 });
 } // namespace WsCli
@@ -385,11 +385,13 @@ namespace WsSrv {
 const string kKeepaliveSec = WS_SRV_FIELD "keepaliveSec";
 const string kDevicePath = WS_SRV_FIELD "devicePath";
 const string kU727Path = WS_SRV_FIELD "u727Path";
+const string kPort = WS_SRV_FIELD "port";
 
 static onceToken token([]() {
     mINI::Instance()[kKeepaliveSec] = 10;
     mINI::Instance()[kDevicePath] = "/ws/";
     mINI::Instance()[kU727Path] = "/u727";
+    mINI::Instance()[kPort] = 3000;
 });
 }
 

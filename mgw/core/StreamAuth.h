@@ -3,7 +3,8 @@
 
 #include <string>
 #include <memory>
-namespace mediakit {
+
+namespace MGW {
 
 class StreamAuth : public std::enable_shared_from_this<StreamAuth>
 {

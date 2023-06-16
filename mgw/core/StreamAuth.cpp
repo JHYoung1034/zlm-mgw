@@ -11,7 +11,7 @@
 
 using namespace std;
 
-namespace mediakit {
+namespace MGW {
 
 string StreamAuth::md5Sum(const string &data) {
 

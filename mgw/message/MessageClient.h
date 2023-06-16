@@ -7,7 +7,7 @@
 #include "MessageCodec.h"
 #include "core/UcastDevice.h"
 
-namespace mediakit {
+namespace MGW {
 
 class MessageClient : public toolkit::TcpClient, public MessageCodec {
 public:

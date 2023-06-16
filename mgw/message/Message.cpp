@@ -7,7 +7,7 @@
 using namespace std;
 using namespace toolkit;
 
-namespace mediakit {
+namespace MGW {
 
 ////////////////////////////////////////////////////////////////////////
 ProtoBufDec::ProtoBufDec(const toolkit::BufferLikeString &buf) {

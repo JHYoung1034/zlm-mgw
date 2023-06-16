@@ -8,7 +8,9 @@ extern "C" {
 #endif
 
 typedef void mgw_handler_t;
-#define ENABLE_RTMP_HEVC 1
+#define ENABLE_RTMP_HEVC    1
+#define MK_VIDEO_TRACK      0
+#define MK_AUDIO_TRACK      1
 
 //定义一些需要回调通知的结构
 typedef struct stream_attrs {
@@ -105,11 +107,27 @@ typedef enum DevInputType {
     INPUT_TYPE_PUB,     //推流输入
 }input_type_t;
 
-typedef struct stream_meta {
-    mk_codec_id     video_id, audio_id;
-    uint16_t        width, height, fps, vkbps;
-    uint16_t        channels, samplerate, samplesize, akbps;
-}stream_meta;
+typedef struct video_info {
+    uint16_t        width;
+    uint16_t        height;
+    uint16_t        fps;
+    uint16_t        vkbps;
+}video_info;
+
+typedef struct audio_info {
+    uint16_t        channels;
+    uint16_t        samplerate;
+    uint16_t        samplesize;
+    uint16_t        akbps;
+}audio_info;
+
+typedef struct track_info {
+    mk_codec_id     id;
+    union {
+        video_info  video;
+        audio_info  audio;
+    };
+}track_info;
 
 typedef struct mk_frame {
     mk_codec_id id;
@@ -124,26 +142,17 @@ typedef struct play_info {
     const char      *url;
     const char      *netif;
     uint16_t        mtu;
-    void (*meta_update)(uint32_t channel, stream_meta *info);
+    void (*meta_update)(uint32_t channel, track_info info);
     void (*input_packet)(uint32_t channel, mk_frame_t frame);
 }play_info;
 
-typedef struct source_info {
-    bool            remote;
-    uint32_t        channel;
-    input_type_t    input_type;  //这个字段指定是设备源还是网络(文件)输入源
-    union {
-        stream_meta local_src;
-        play_info   play_src;
-    };
-}source_info;
-
-int mgw_add_source(mgw_handler_t *h, source_info *info);
+/**在输入数据包的时候，动态生成音视频track*/
 int mgw_input_packet(mgw_handler_t *h, uint32_t channel, mk_frame_t frame);
 void mgw_release_source(mgw_handler_t *h, bool local, uint32_t channel);
 //只有local source才能更新meta
-void mgw_update_meta(mgw_handler_t *h, uint32_t channel, stream_meta *info);
-bool mgw_has_source(mgw_handler_t *h, bool local, uint32_t channel);
+void mgw_update_meta(mgw_handler_t *h, uint32_t channel, track_info info);
+bool mgw_have_raw_video(mgw_handler_t *h, uint32_t channel);
+bool mgw_have_raw_audio(mgw_handler_t *h, uint32_t channel);
 //开启录像
 void mgw_start_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel);
 void mgw_stop_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel);
@@ -177,6 +186,7 @@ typedef struct play_service_attr {
     bool        stop;
     bool        stop_all;
     bool        local_service;
+    int         src_chn;
     uint32_t    players;
     const char  *schema;
     const char  *play_url;
@@ -188,7 +198,7 @@ void mgw_get_play_service(mgw_handler_t *h, play_service_attr *attr);
 /////////////////////////////////////////////////////////////////
 typedef void (*on_status)(uint32_t channel, status_info info);
 typedef void (*on_data)(uint32_t channel, mk_frame_t frame);
-typedef void (*on_meta)(uint32_t channel, input_type_t it, stream_meta meta);
+typedef void (*on_meta)(uint32_t channel, input_type_t it, track_info info);
 
 typedef struct player_attr {
     bool        remote;

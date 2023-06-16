@@ -5,8 +5,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 Device::DeviceConfig::DeviceConfig(const string &s, const string &t,
                     const string &ven, const string &ver,

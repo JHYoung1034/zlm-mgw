@@ -5,7 +5,7 @@
 #include "Util/TimeTicker.h"
 #include "Defines.h"
 
-namespace mediakit {
+namespace MGW {
 
 /**
 * 需要的参数：推流地址(带用户名&密码 待实现)，通道名字(O[L/R][chn]), 绑定网卡名&mtu, 推流状态回调
@@ -21,11 +21,11 @@ public:
     PushHelper(const std::string &name, int channel = -1);
     ~PushHelper();
     void start(const std::string &url, onStatusChanged on_status_changed, int max_retry,
-                const MediaSource::Ptr &src, const std::string &netif = "default",
+                const mediakit::MediaSource::Ptr &src, const std::string &netif = "default",
                 uint16_t mtu = 1500, void *userdata = nullptr);
     //对于正在推流的通道，如果有新的推流，释放原来的推流，建立一个新的推流
     void restart(const std::string &url, onStatusChanged on_status_changed,
-                const MediaSource::Ptr &src, const std::string &netif = "default",
+                const mediakit::MediaSource::Ptr &src, const std::string &netif = "default",
                 uint16_t mtu = 1500, void *userdata = nullptr);
 
     ChannelStatus status() const { return _info.status; }
@@ -41,9 +41,9 @@ private:
     std::string _netif;
     int _retry_count;
     onStatusChanged _on_status_changed;
-    std::weak_ptr<MediaSource> _wek_src;
+    std::weak_ptr<mediakit::MediaSource> _wek_src;
     StreamInfo _info;
-    MediaPusher::Ptr _pusher;
+    mediakit::MediaPusher::Ptr _pusher;
     toolkit::Timer::Ptr _timer;
 };
 

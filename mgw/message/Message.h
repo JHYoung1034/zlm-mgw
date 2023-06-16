@@ -19,7 +19,7 @@ namespace mgw {
 }
 
 /** ---------------------------------------------------------------------------------------*/
-namespace mediakit {
+namespace MGW {
 enum CmdType {
     /** Device-->Server request message */
     CmdType_None        = 0,

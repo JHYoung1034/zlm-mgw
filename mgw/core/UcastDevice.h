@@ -20,14 +20,14 @@
 #include "TrafficStatistics.h"
 #include "Defines.h"
 
-namespace mediakit {
+namespace MGW {
 
 class Device : public toolkit::DeviceBase {
 public:
     struct DeviceConfig;
 
     using Ptr = std::shared_ptr<Device>;
-    using onNoReader = std::function<void()>;
+    using onNoReader = std::function<void(const std::string&/*id*/)>;
     using onPlayersChanged = std::function<void(bool/*local*/, int/*players*/)>;
     using onNotFoundStream = std::function<void(const std::string &)>;
     using onConfigChanged = std::function<void(const DeviceConfig &)>;
@@ -86,9 +86,9 @@ public:
     std::string sn(void) override { return _cfg.sn; }
 
     ///////////////// 处理事件 ////////////////
-    void doOnNoReader() {
+    void doOnNoReader(const std::string &id) {
         if (_on_noreader) {
-            _on_noreader();
+            _on_noreader(id);
         }
     }
     void doOnPlayersChange(bool local, int players) {
@@ -128,7 +128,7 @@ public:
     }
     ////////////////////////////////////////////
 
-    ProtocolOption getEnableOption() const { return _option; }
+    mediakit::ProtocolOption getEnableOption() const { return _option; }
 
     //管理推流
     PushHelper::Ptr &pusher(const std::string &name);
@@ -174,7 +174,7 @@ private:
     StreamAuth      _auth;
     //允许的播放协议,如：rtmp, hls, rtsp, http-flv等等协议，默认根据配置文件设置。
     //当需要录制这一个设备流的时候，可以更改这个option
-    ProtocolOption _option;
+    mediakit::ProtocolOption _option;
     //推流实例管理，u727会话线程会访问，可能需要加锁，并不会频繁访问
     std::unordered_map<std::string, PushHelper::Ptr> _pusher_map;
     //拉流实例管理
@@ -198,7 +198,7 @@ public:
 
     //推流
     void addPusher(const std::string &name, bool remote, const std::string &url,
-                    MediaSource::Ptr src, PushHelper::onStatusChanged on_status_changed,
+                    mediakit::MediaSource::Ptr src, PushHelper::onStatusChanged on_status_changed,
                     const std::string &netif = "default", uint16_t mtu = 1500, void *userdata = nullptr);
     void releasePusher(const std::string &name);
     bool hasPusher(const std::string &name);
@@ -210,7 +210,7 @@ public:
     void releasePlayer(const std::string &name);
     bool hasPlayer(const std::string &name);
     //使用mgw-server下发的地址开启tunnel推流
-    void startTunnelPusher(const MediaSource::Ptr &media_src);
+    void startTunnelPusher(const mediakit::MediaSource::Ptr &media_src);
     void stopTunnelPusher();
     //遍历所有的推流
     void pusher_for_each(std::function<void(PushHelper::Ptr)> func);

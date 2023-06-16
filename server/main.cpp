@@ -54,18 +54,9 @@
 using namespace std;
 using namespace toolkit;
 using namespace mediakit;
+using namespace MGW;
 
 namespace mediakit {
-////////////HTTP配置///////////
-// namespace Http {
-// #define HTTP_FIELD "http."
-// const string kPort = HTTP_FIELD"port";
-// const string kSSLPort = HTTP_FIELD"sslport";
-// onceToken token1([](){
-//     mINI::Instance()[kPort] = 80;
-//     mINI::Instance()[kSSLPort] = 443;
-// },nullptr);
-// }//namespace Http
 
 ////////////SHELL配置///////////
 namespace Shell {
@@ -75,60 +66,7 @@ onceToken token1([](){
     mINI::Instance()[kPort] = 9000;
 },nullptr);
 } //namespace Shell
-
-////////////RTSP服务器配置///////////
-// namespace Rtsp {
-// #define RTSP_FIELD "rtsp."
-// // const string kPort = RTSP_FIELD"port";
-// const string kSSLPort = RTSP_FIELD"sslport";
-// onceToken token1([](){
-//     // mINI::Instance()[kPort] = 554;
-//     mINI::Instance()[kSSLPort] = 332;
-// },nullptr);
-
-// } //namespace Rtsp
-
-////////////RTMP服务器配置///////////
-// namespace Rtmp {
-// #define RTMP_FIELD "rtmp."
-// // const string kPort = RTMP_FIELD"port";
-// const string kSSLPort = RTMP_FIELD"sslport";
-// onceToken token1([](){
-//     // mINI::Instance()[kPort] = 1935;
-//     mINI::Instance()[kSSLPort] = 19350;
-// },nullptr);
-// } //namespace RTMP
-
-////////////Rtp代理相关配置///////////
-// namespace RtpProxy {
-// #define RTP_PROXY_FIELD "rtp_proxy."
-// const string kPort = RTP_PROXY_FIELD"port";
-// onceToken token1([](){
-//     mINI::Instance()[kPort] = 10000;
-// },nullptr);
-// } //namespace RtpProxy
-
-///////////Websocket 客户端配置//////////////
-namespace WsCli {
-#define WS_CLI_FIELD "ws_cli."
-const string kHost = WS_CLI_FIELD"host";
-const string kPort = WS_CLI_FIELD"port";
-onceToken token1([](){
-    mINI::Instance()[kHost] = "127.0.0.1";
-    mINI::Instance()[kPort] = 7767;
-}, nullptr);
-} //namespace WsCli
-
-///////////Websocket 服务器配置//////////////
-namespace WsSrv {
-#define WS_SRV_FIELD "ws_srv."
-const string kPort = WS_SRV_FIELD"port";
-onceToken token1([](){
-    mINI::Instance()[kPort] = 7769;
-}, nullptr);
-} // namespace WsSrv
-}  // namespace mediakit
-
+}
 
 class CMD_main : public CMD {
 public:
@@ -339,12 +277,26 @@ int start_main(int argc,char *argv[]) {
 #endif //defined(ENABLE_SRT)
 
 #if defined(ENABLE_MGW)
-        // uint16_t wsCliPort = mINI::Instance()[WsCli::kPort];
-        // string wsCliHost = mINI::Instance()[WsCli::kHost];
-        // // 启动连接到聚合服务器的websocket
-        // WebSocketClient<MessageClient, WebSocketHeader::BINARY>::Ptr client =
-        //     std::make_shared<WebSocketClient<MessageClient, WebSocketHeader::BINARY> >(
-        //         EventPollerPool::Instance().getPoller(), Entity_MgwServer, nullptr);
+        string ws_url = mINI::Instance()[WsCli::kUrl];
+        // 启动连接到聚合服务器的websocket
+        using Ws = WebSocketClient<MessageClient, WebSocketHeader::BINARY>;
+        Ws::Ptr ws_cli = make_shared<Ws>(EventPollerPool::Instance().getPoller(), Entity_MgwServer, nullptr);
+
+        weak_ptr<Ws> ws_weak = dynamic_pointer_cast<Ws>(ws_cli);
+        ws_cli->setOnConnectErr([ws_weak, ws_url](const SockException &ex){
+            auto strong_self = ws_weak.lock();
+            if (!strong_self) { return; }
+
+            if (ex && !strong_self->alive()) {
+                strong_self->getPoller()->doDelayTask(2*1000, [ws_weak, ws_url]()->uint64_t {
+                    auto strong_self = ws_weak.lock();
+                    if (!strong_self) { return 0; }
+
+                    strong_self->startWebSocket(ws_url);
+                    return 0;
+                });
+            }
+        });
 
         //websocket 消息服务器，接收设备的消息
         uint16_t wsSrvPort = mINI::Instance()[WsSrv::kPort];
@@ -390,7 +342,7 @@ int start_main(int argc,char *argv[]) {
 
 #if defined(ENABLE_MGW)
             //连接到聚合服务器websocket
-            // client->startConnect(wsCliHost, wsCliPort);
+            ws_cli->startWebSocket(ws_url);
 
             //创建websocket服务器
             mgwSrv->start<WebSocketSessionBase<MessageSessionCreator,

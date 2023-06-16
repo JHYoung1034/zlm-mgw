@@ -7,9 +7,10 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
 
-namespace mediakit {
+namespace MGW {
 
 EventProcess::EventProcess() {
 }
@@ -137,7 +138,7 @@ void EventProcess::run() {
             string sn = getSnByStreamId(sender.getId());
             auto device = DeviceHelper::findDevice(sn);
             if (device) {
-                device->doOnNoReader();
+                device->doOnNoReader(sender.getId());
             }
         });
     });

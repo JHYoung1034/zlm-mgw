@@ -9,8 +9,9 @@
 
 using namespace std;
 using namespace toolkit;
+using namespace mediakit;
 
-namespace mediakit {
+namespace MGW {
 
 PlayHelper::PlayHelper(const string &name, int chn, int max_retry) {
     _info.channel = chn == -1 ? getOutputChn(name) : chn;
@@ -40,7 +41,7 @@ void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onD
     _info.startTime = ::time(NULL);
 
     if (_stream_id.empty()) {
-        //创建实例的时候没有穿id，url最右边'/'之后的名字作为id
+        //创建实例的时候没有id，url最右边'/'之后的名字作为id
         _info.id = _stream_id = FindField(url.data(), url.substr(url.rfind('/')+1).data(), NULL);
     }
 

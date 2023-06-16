@@ -424,7 +424,7 @@ extern const std::string kPlayTrack;
 //-------------------------------------------------------------------
 //mgw业务配置
 namespace WsCli {
-    extern const std::string kPath;
+    extern const std::string kUrl;
     extern const std::string kPingSec;
 } //namespace WsCli
 
@@ -432,6 +432,7 @@ namespace WsSrv {
     extern const std::string kKeepaliveSec;
     extern const std::string kDevicePath;
     extern const std::string kU727Path;
+    extern const std::string kPort;
 } //namespace WsSrv
 
 namespace SrtSrv {

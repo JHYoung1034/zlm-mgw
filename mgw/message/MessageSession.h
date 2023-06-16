@@ -7,7 +7,7 @@
 #include "core/UcastDevice.h"
 #include "core/U727.h"
 
-namespace mediakit {
+namespace MGW {
 
 class DeviceSession : public toolkit::Session, public MessageCodec {
 public:
