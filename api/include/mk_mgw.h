@@ -3,6 +3,7 @@
 #define __MGW_MK_MGW_H__
 
 #include <inttypes.h>
+#include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

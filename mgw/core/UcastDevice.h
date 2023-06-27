@@ -115,7 +115,9 @@ public:
             void *userdata = nullptr;
             if (type == ChannelType_ProxyOutput) {
                 auto pusher = _pusher_map[getOutputName(true, chn)];
-                userdata = pusher->getInfo().userdata;
+                if (pusher) {
+                    userdata = pusher->getInfo().userdata;
+                }
             }
             _on_status_changed(type, chn, sta, code, ts, userdata);
         }
@@ -277,8 +279,6 @@ private:
     static std::recursive_mutex _mtx;
     static std::unordered_map<std::string, Device::Ptr> _device_map;
 };
-
-
 
 }
 
