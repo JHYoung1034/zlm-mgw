@@ -209,6 +209,10 @@ typedef struct player_attr {
     const char  *netif;
     uint16_t    mtu;
 
+    const char  *username;
+    const char  *password;
+    void        *userdata;
+
     on_status   status_cb;
     on_data     data_cb;
     on_meta     meta_cb;

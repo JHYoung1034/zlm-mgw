@@ -292,7 +292,7 @@ void DeviceHelper::stopTunnelPusher() {
 
 void DeviceHelper::addPlayer(const string &name, bool remote, const string &url,
                     PlayHelper::onStatusChanged on_status, PlayHelper::onData on_data,
-                    PlayHelper::onMeta on_meta, const string &netif, uint16_t mtu) {
+                    PlayHelper::onMeta on_meta, const string &netif, uint16_t mtu, void *userdata) {
     auto dev = device();
     auto player = dev->player(name);
     if (!remote) {
@@ -300,9 +300,9 @@ void DeviceHelper::addPlayer(const string &name, bool remote, const string &url,
 
         if (player->status() != ChannelStatus_Idle) {
             WarnL << "Already exist, release the old and create a new: " << name;
-            player->restart(url, on_status, on_data, on_meta);
+            player->restart(url, on_status, on_data, on_meta, userdata);
         } else {
-            player->start(url, on_status, on_data, on_meta);
+            player->start(url, on_status, on_data, on_meta, userdata);
         }
     } else {
         //TODO: 请求服务器代理拉流
@@ -314,7 +314,8 @@ void DeviceHelper::releasePlayer(const string &name) {
 }
 
 bool DeviceHelper::hasPlayer(const string &name) {
-    return false;
+    auto dev = device();
+    return dev->_player_map.find(name) != dev->_player_map.end();
 }
 
 void DeviceHelper::pusher_for_each(function<void(PushHelper::Ptr)> func) {

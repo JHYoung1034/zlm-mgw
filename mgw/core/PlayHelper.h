@@ -20,7 +20,7 @@ public:
     /** name, status, start_time, exception */
     /** player 和 pusher 的一些业务特性相同，后续要抽象出来统一处理 */
     using onStatusChanged = std::function<void(const std::string&,
-                    ChannelStatus,Time_t, const toolkit::SockException &)>;
+                    ChannelStatus,Time_t, const toolkit::SockException &, void*)>;
     /** id, data, size, dts, pts, keyframe */
     using onData = std::function<void (mediakit::CodecId, const char*, uint32_t, uint64_t, uint64_t, bool)>;
     /**Video: codecid, width, height, fps, vkbps
@@ -43,8 +43,8 @@ public:
     /// @param url 网络url或者本地录像文件路径
     /// @param on_status_changed 播放状态变化回调
     /// @param on_data 播放帧数据回调
-    void start(const std::string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta);
-    void restart(const std::string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta);
+    void start(const std::string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta, void *userdata);
+    void restart(const std::string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta, void *userdata);
 
     /**
      * 获取观看总人数

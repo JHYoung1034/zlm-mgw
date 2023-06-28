@@ -726,14 +726,14 @@ int DeviceHandle::addPlayer(player_attr info) {
 
     if (!info.remote) {
         auto on_play_status = [&, info](const string &name, ChannelStatus status,
-                                        Time_t start_ts, const SockException &ex){
+                                Time_t start_ts, const SockException &ex, void *userdata){
             if (!info.status_cb) {
                 return;
             }
             status_info sta;
             sta.channel = info.channel;
             sta.error = ex.getCustomCode();
-            sta.priv = NULL;
+            sta.priv = userdata;
             sta.remote = name.find("_SVR_") != string::npos;
             sta.start_time = start_ts;
             sta.status = (mk_status)status;
@@ -776,7 +776,7 @@ int DeviceHandle::addPlayer(player_attr info) {
         }
         _device_helper->addPlayer(streamid, info.remote, info.url,
                         on_play_status, on_play_data, on_play_meta,
-                        info.netif?info.netif:"", info.mtu);
+                        info.netif?info.netif:"", info.mtu, info.userdata);
     } else {
         //TODO: 请求服务器代理拉流
     }

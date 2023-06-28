@@ -238,7 +238,8 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
         string url = string("rtsp://") + string(DEFAULT_VHOST) + "/live/" + stream_id;
         info.parse(url);
 
-        auto on_play_status = [weak_self, on_status](const string &id, ChannelStatus status, Time_t ts, const SockException &ex) {
+        auto on_play_status = [weak_self, on_status](const string &id, ChannelStatus status,
+                                            Time_t ts, const SockException &ex, void *userdata) {
             //输入源播放成功与否都要返回状态给u727
             DebugL << "play[" << id << "]: " << ex.what() << ", start_time: " << ts;
             // on_status(stream_id, err, des, "", "");
@@ -267,9 +268,9 @@ void U727Session::startStream(const string &stream_id, uint32_t delay_ms,
                 if (src_type == StreamType_Play || src_type == StreamType_File) {
                     auto player = strong_self->_u727->player(info._streamid);
                     if (player->status() != ChannelStatus_Idle) {
-                        player->restart(src_url, on_play_status, nullptr, nullptr);
+                        player->restart(src_url, on_play_status, nullptr, nullptr, nullptr);
                     } else {
-                        player->start(src_url, on_play_status, nullptr, nullptr);
+                        player->start(src_url, on_play_status, nullptr, nullptr, nullptr);
                     }
                 }
             }, false);

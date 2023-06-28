@@ -25,8 +25,11 @@ PlayHelper::~PlayHelper() {
         teardown();
     }
     if (_on_status_changed) {
-        _on_status_changed(_info.id, ChannelStatus_Idle, ::time(NULL), SockException());
+        _on_status_changed(_info.id, ChannelStatus_Idle, ::time(NULL), SockException(), _info.userdata);
         _on_status_changed = nullptr;
+    }
+    if (_info.userdata) {
+        free(_info.userdata);
     }
 }
 
@@ -34,10 +37,11 @@ void PlayHelper::setNetif(const string &netif, uint16_t mtu) {
     MediaPlayer::setNetif(netif, mtu);
 }
 
-void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta) {
+void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta, void *userdata) {
     _info.url = url;
     _on_status_changed = on_status_changed;
     _on_meta = on_meta;
+    _info.userdata = userdata;
     _info.startTime = ::time(NULL);
 
     if (_stream_id.empty()) {
@@ -59,11 +63,11 @@ void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onD
         WarnL << "Invalid url: " << url;
     }
 }
-void PlayHelper::restart(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta) {
+void PlayHelper::restart(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta, void *userdata) {
     if (_info.status != ChannelStatus_Idle) {
         teardown();
     }
-    start(url, on_status_changed, on_data, on_meta);
+    start(url, on_status_changed, on_data, on_meta, userdata);
 }
 
 void PlayHelper::startFromFile(const string &file) {
@@ -98,7 +102,8 @@ void PlayHelper::startFromNetwork(const string &url) {
             strong_self->_info.status = ChannelStatus_Idle;
             if (strong_self->_on_status_changed) {
                 strong_self->_on_status_changed(strong_self->_stream_id,
-                    strong_self->_info.status, strong_self->_info.startTime, err);
+                    strong_self->_info.status, strong_self->_info.startTime,
+                    err, strong_self->_info.userdata);
             }
         }
     };
@@ -126,7 +131,7 @@ void PlayHelper::startFromNetwork(const string &url) {
         if (strong_self->_on_status_changed) {
             DebugL << "Play Result: [" << err.getErrCode() << "]";
             strong_self->_on_status_changed(strong_self->_stream_id, strong_self->_info.status,
-                        strong_self->_info.startTime, err);
+                        strong_self->_info.startTime, err, strong_self->_info.userdata);
         }
     });
 
@@ -158,7 +163,8 @@ void PlayHelper::rePlay(const std::string &url, int failed_cnt) {
     weak_ptr<PlayHelper> weak_self = shared_from_this();
     _info.status = ChannelStatus_RePlaying;
     if (_on_status_changed) {
-        _on_status_changed(_stream_id, _info.status, _info.startTime, SockException(Err_success, "RePlaying", 0));
+        _on_status_changed(_stream_id, _info.status, _info.startTime,
+                SockException(Err_success, "RePlaying", 0), _info.userdata);
     }
     _timer = std::make_shared<Timer>(iDelay / 1000.0f, [weak_self, url, failed_cnt]() {
         //播放失败次数越多，则延时越长
@@ -188,7 +194,7 @@ bool PlayHelper::close(MediaSource &sender) {
         strongSelf->teardown();
     });
     if (_on_status_changed) {
-        _on_status_changed(_stream_id, ChannelStatus_Idle, _info.startTime, SockException());
+        _on_status_changed(_stream_id, ChannelStatus_Idle, _info.startTime, SockException(), _info.userdata);
     }
     WarnL << "close media: " << sender.getUrl();
     return true;
@@ -245,13 +251,15 @@ void PlayHelper::onPlaySuccess() {
                 _info.status = ChannelStatus_Idle;
                 if (_on_status_changed) {
                     _on_status_changed(_stream_id, _info.status, _info.startTime,
-                                SockException(Err_other, "Create from MP4 failed", -1));
+                                SockException(Err_other, "Create from MP4 failed", -1),
+                                _info.userdata);
                 }
                 return;
             }
             _info.status = ChannelStatus_Playing;
             _on_status_changed(_stream_id, _info.status, _info.startTime,
-                                SockException(Err_success, "Success", 0));
+                                SockException(Err_success, "Success", 0),
+                                _info.userdata);
         }
     }
     _muxer->setMediaListener(shared_from_this());

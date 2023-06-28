@@ -10,7 +10,7 @@ string getOutputName(bool remote, uint32_t chn) {
     return ostr.str();
 }
 /**
-规则：SN(8字节)_DEV/SVR_PHY/PLA/REC/PUB_SC[通道号]
+规则：SN(8字节)_[DEV/SVR]_[PHY/PLA/REC/PUB]_SC[通道号]
 SN: 设备的sn前8个字符
 DEV：设备device
 SVR: 服务器server
