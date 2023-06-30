@@ -72,6 +72,7 @@ enum ErrorCode {
     Invalid_Url,        //错误的流地址/码
     Invalid_SSL,        //无用的ssl证书，服务器发来的ssl证书无效
     Common_Failed,      //一般的推/拉流错误
+    Unreachable,        //网络不可达
 };
 
 struct StreamInfo {

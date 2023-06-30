@@ -774,7 +774,8 @@ int DeviceHandle::addPlayer(player_attr info) {
                 info.meta_cb(info.channel, INPUT_TYPE_PLA, meta);
             };
         }
-        _device_helper->addPlayer(streamid, info.remote, info.url,
+        string url = info.url;
+        _device_helper->addPlayer(streamid, info.remote, url,
                         on_play_status, on_play_data, on_play_meta,
                         info.netif?info.netif:"", info.mtu, info.userdata);
     } else {

@@ -61,6 +61,10 @@ void PlayHelper::start(const string &url, onStatusChanged on_status_changed, onD
         startFromFile(url);
     } else {
         WarnL << "Invalid url: " << url;
+        if (_on_status_changed) {
+            _on_status_changed(_stream_id, ChannelStatus_Idle, 0,
+                SockException(Err_other, "Invalid url", mgw_error(Invalid_Url)), _info.userdata);
+        }
     }
 }
 void PlayHelper::restart(const string &url, onStatusChanged on_status_changed, onData on_data, onMeta on_meta, void *userdata) {
@@ -84,7 +88,6 @@ void PlayHelper::startFromNetwork(const string &url) {
         auto strong_self = weak_self.lock();
         if (!strong_self) { return; }
 
-        WarnL << "play err: " << err.what();
         //主动关闭不需要重连
         if (err && err.getErrCode() == Err_shutdown) {
             return;
@@ -100,10 +103,12 @@ void PlayHelper::startFromNetwork(const string &url) {
             //发生了错误，并且没办法重新拉流了，回调通知
             strong_self->_info.stopTime = ::time(NULL);
             strong_self->_info.status = ChannelStatus_Idle;
+
+            SockException ex(err.getErrCode(), err.what(), mgw_error(Common_Failed));
             if (strong_self->_on_status_changed) {
                 strong_self->_on_status_changed(strong_self->_stream_id,
                     strong_self->_info.status, strong_self->_info.startTime,
-                    err, strong_self->_info.userdata);
+                    ex, strong_self->_info.userdata);
             }
         }
     };
@@ -124,14 +129,12 @@ void PlayHelper::startFromNetwork(const string &url) {
             strong_self->_info.startTime = ::time(NULL);
             strong_self->_info.status = ChannelStatus_Playing;
             strong_self->onPlaySuccess();
+            //通知播放成功结果
+            if (strong_self->_on_status_changed) {
+                strong_self->_on_status_changed(strong_self->_stream_id, strong_self->_info.status,
+                            strong_self->_info.startTime, err, strong_self->_info.userdata);
+            }
             InfoL << "Play [" << strong_self->_info.url << "] success";
-        }
-
-        //播放结果仅回调一次
-        if (strong_self->_on_status_changed) {
-            DebugL << "Play Result: [" << err.getErrCode() << "]";
-            strong_self->_on_status_changed(strong_self->_stream_id, strong_self->_info.status,
-                        strong_self->_info.startTime, err, strong_self->_info.userdata);
         }
     });
 
@@ -251,14 +254,14 @@ void PlayHelper::onPlaySuccess() {
                 _info.status = ChannelStatus_Idle;
                 if (_on_status_changed) {
                     _on_status_changed(_stream_id, _info.status, _info.startTime,
-                                SockException(Err_other, "Create from MP4 failed", -1),
+                                SockException(Err_other, "Create from MP4 failed", mgw_error(Common_Failed)),
                                 _info.userdata);
                 }
                 return;
             }
             _info.status = ChannelStatus_Playing;
             _on_status_changed(_stream_id, _info.status, _info.startTime,
-                                SockException(Err_success, "Success", 0),
+                                SockException(Err_success, "Success", Success),
                                 _info.userdata);
         }
     }
