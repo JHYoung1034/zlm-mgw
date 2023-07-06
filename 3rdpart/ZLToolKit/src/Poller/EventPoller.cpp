@@ -292,7 +292,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         while (!_exit_flag) {
-            minDelay = getMinDelay();
+            minDelay = getMinDelay();//此调用会刷新定时器任务
             startSleep();//用于统计当前线程负载情况
             int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
             sleepWakeUp();//用于统计当前线程负载情况
