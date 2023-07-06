@@ -116,5 +116,22 @@ private:
     mediakit::FrameMerger _merge = {mediakit::FrameMerger::h264_prefix};
 };
 
+//////////////////////////////////////////////////////////////////////////////////
+// //此类用于网络拉流
+// class NetPlayer : public PlayHelper {
+
+// };
+
+
+// //////////////////////////////////////////////////////////////////////////////////
+// //此类用于播放本地录像文件
+// class RecPlayer : public PlayHelper {
+// public:
+//     RecPlayer(const std::string &name, int chn = -1, int max_retry = -1);
+//     ~RecPlayer();
+
+
+// };
+
 }
 #endif  //__PLAY_HELPER_H__

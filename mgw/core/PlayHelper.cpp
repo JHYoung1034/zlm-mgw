@@ -192,7 +192,9 @@ bool PlayHelper::close(MediaSource &sender) {
         if (!strongSelf) {
             return;
         }
-        strongSelf->_muxer.reset();
+        if (!strongSelf->_is_local_input) {
+            strongSelf->_muxer.reset();
+        }
         strongSelf->setMediaSource(nullptr);
         strongSelf->teardown();
     });
@@ -228,51 +230,54 @@ float PlayHelper::getLossRate(MediaSource &sender, TrackType type) {
 }
 
 void PlayHelper::onPlaySuccess() {
-    GET_CONFIG(bool, reset_when_replay, General::kResetWhenRePlay);
-    if (dynamic_pointer_cast<RtspMediaSource>(_media_src)) {
-        //rtsp拉流代理
-        if (reset_when_replay || !_muxer) {
-            _option.enable_rtsp = false;
-            _muxer = std::make_shared<MultiMediaSourceMuxer>(DEFAULT_VHOST, "live", _stream_id, getDuration(), _option);
-        }
-    } else if (dynamic_pointer_cast<RtmpMediaSource>(_media_src)) {
-        //rtmp拉流代理
-        if (reset_when_replay || !_muxer) {
-            _option.enable_rtmp = false;
-            _muxer = std::make_shared<MultiMediaSourceMuxer>(DEFAULT_VHOST, "live", _stream_id, getDuration(), _option);
-        }
-    } else {
-        //其他拉流代理
-        if (reset_when_replay || !_muxer) {
-            _muxer = std::make_shared<MultiMediaSourceMuxer>(DEFAULT_VHOST, "live", _stream_id, getDuration(), _option);
-        }
-        //从本地MP4文件输入
-        if (_is_local_input) {
-            _media_src = MediaSource::createFromMP4("rtsp", DEFAULT_VHOST, "live", _stream_id, _info.url);
-            if (!_media_src) {
-                //从录像文件输入失败了，需要通知
-                _info.status = ChannelStatus_Idle;
-                if (_on_status_changed) {
-                    _on_status_changed(_stream_id, _info.status, _info.startTime,
-                                SockException(Err_other, "Create from MP4 failed", mgw_error(Common_Failed)),
-                                _info.userdata);
-                }
-                return;
+    if (!_is_local_input) {
+        GET_CONFIG(bool, reset_when_replay, General::kResetWhenRePlay);
+        if (dynamic_pointer_cast<RtspMediaSource>(_media_src)) {
+            //rtsp拉流代理
+            if (reset_when_replay || !_muxer) {
+                _option.enable_rtsp = false;
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(DEFAULT_VHOST, "live", _stream_id, getDuration(), _option);
             }
-            _info.status = ChannelStatus_Playing;
-            _on_status_changed(_stream_id, _info.status, _info.startTime,
-                                SockException(Err_success, "Success", Success),
-                                _info.userdata);
+        } else if (dynamic_pointer_cast<RtmpMediaSource>(_media_src)) {
+            //rtmp拉流代理
+            if (reset_when_replay || !_muxer) {
+                _option.enable_rtmp = false;
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(DEFAULT_VHOST, "live", _stream_id, getDuration(), _option);
+            }
+        } else {
+            //其他拉流代理
+            if (reset_when_replay || !_muxer) {
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(DEFAULT_VHOST, "live", _stream_id, getDuration(), _option);
+            }
         }
+        _muxer->setMediaListener(shared_from_this());
+    } else {
+        _media_src = MediaSource::createFromMP4("rtsp", DEFAULT_VHOST, "live", _stream_id, _info.url, false, (_max_retry==-1));
+        if (!_media_src) {
+            //从录像文件输入失败了，需要通知
+            WarnL << "Create source form " << _info.url << "  failed!";
+            _info.status = ChannelStatus_Idle;
+            if (_on_status_changed) {
+                _on_status_changed(_stream_id, _info.status, _info.startTime,
+                            SockException(Err_other, "Create from MP4 failed", mgw_error(Common_Failed)),
+                            _info.userdata);
+            }
+            return;
+        }
+        _info.status = ChannelStatus_Playing;
+        _on_status_changed(_stream_id, _info.status, _info.startTime,
+                            SockException(Err_success, "Success", Success),
+                            _info.userdata);
     }
-    _muxer->setMediaListener(shared_from_this());
 
     auto videoTrack = getTrack(TrackVideo, false);
     if (videoTrack) {
         //添加视频
-        _muxer->addTrack(videoTrack);
-        //视频数据写入_mediaMuxer
-        videoTrack->addDelegate(_muxer);
+        if (!_is_local_input) {
+            _muxer->addTrack(videoTrack);
+            //视频数据写入_mediaMuxer
+            videoTrack->addDelegate(_muxer);
+        }
         //视频数据写入帧摄取器
         if (_ingest) {
             videoTrack->addDelegate(_ingest);
@@ -289,9 +294,11 @@ void PlayHelper::onPlaySuccess() {
     auto audioTrack = getTrack(TrackAudio, false);
     if (audioTrack) {
         //添加音频
-        _muxer->addTrack(audioTrack);
-        //音频数据写入_mediaMuxer
-        audioTrack->addDelegate(_muxer);
+        if (!_is_local_input) {
+            _muxer->addTrack(audioTrack);
+            //音频数据写入_mediaMuxer
+            audioTrack->addDelegate(_muxer);
+        }
         //音频数据写入帧摄取器
         if (_ingest) {
             audioTrack->addDelegate(_ingest);
@@ -306,11 +313,13 @@ void PlayHelper::onPlaySuccess() {
     }
 
     //添加完毕所有track，防止单track情况下最大等待3秒
-    _muxer->addTrackCompleted();
+    if (!_is_local_input) {
+        _muxer->addTrackCompleted();
 
-    if (_media_src) {
-        //让_muxer对象拦截一部分事件(比如说录像相关事件)
-        _media_src->setListener(_muxer);
+        if (_media_src) {
+            //让_muxer对象拦截一部分事件(比如说录像相关事件)
+            _media_src->setListener(_muxer);
+        }
     }
 }
 

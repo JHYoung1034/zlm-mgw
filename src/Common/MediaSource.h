@@ -386,7 +386,10 @@ public:
     // 遍历所有流
     static void for_each_media(const std::function<void(const Ptr &src)> &cb, const std::string &schema = "", const std::string &vhost = "", const std::string &app = "", const std::string &stream = "");
     // 从mp4文件生成MediaSource
-    static MediaSource::Ptr createFromMP4(const std::string &schema, const std::string &vhost, const std::string &app, const std::string &stream, const std::string &file_path = "", bool check_app = true);
+    static MediaSource::Ptr createFromMP4(const std::string &schema, const std::string &vhost,
+                                            const std::string &app, const std::string &stream,
+                                            const std::string &file_path = "",
+                                            bool check_app = true, bool repeat = false);
 
 protected:
     //媒体注册
