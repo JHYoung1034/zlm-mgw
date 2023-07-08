@@ -125,6 +125,48 @@ fi
 
 if [ ! -f ${MGW_3RDPARTY}/install/lib/libprotobuf.so ]; then echo "Build protobuf-3.14.0-fit failed."; exit -1; fi
 
+################### compile libsrt-1.4.4 #######################################
+if [[ -f ${MGW_3RDPARTY}/install/lib/libsrt.so ]]; then
+    echo "srt-1.4.4-fit is ok.";
+else
+    echo "Build srt-1.4.4-fit"
+    (
+        if [[ ! -f ${MGW_3RDPARTY}/srt-1.4.4-fit.tar.gz ]]; then
+            echo "Do not exists srt packet: 'srt-1.4.4-fit.tar.gz'";
+            exit -1;
+        fi
+
+        #Check pkgconfig of openssl, exit if exist
+        pkg-config --exists libssl >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "libssl no found, build srt-1.4.4-fit failed.";
+            exit -1;
+        fi
+
+        # Always disable c++11 for libsrt, because only the srt-app requres it.
+        LIBSRT_OPTIONS="--disable-app  --enable-static=0 --enable-shared=1 --enable-c++11=0"
+        # if [[ $MGW_SHARED_LIBS == YES ]]; then
+        #     LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
+        # else
+        #     LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
+        # fi
+        # Start build libsrt.
+        cd ${MGW_3RDPARTY} && rm -rf ${MGW_3RDPARTY}/srt &&
+        tar -zxvf srt-1.4.4-fit.tar.gz && cd srt &&
+        ./configure --prefix=${INSTALL_PREFIX} $LIBSRT_OPTIONS &&
+        make ${MGW_JOBS} && make install &&
+        cd .. && rm -rf srt &&
+        #If exists lib64 of libsrt, link it to lib
+        if [[ -d ./install/lib64 ]]; then
+            cd ./install
+            if [[ ! -d lib ]]; then mkdir lib; fi
+            cp -rvf lib64/* lib/
+        fi
+    )
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srt-1.4.4-fit failed, ret=$ret"; exit $ret; fi
+fi
+
+if [ ! -f ${MGW_3RDPARTY}/install/lib/libsrt.so ]; then echo "Build srt-1.4.4-fit failed."; exit -1; fi
+
 #check ffmpeg4.x  --> x264, x265,rtmp,fdk-aac
 function ffmpeg_install_check()
 {

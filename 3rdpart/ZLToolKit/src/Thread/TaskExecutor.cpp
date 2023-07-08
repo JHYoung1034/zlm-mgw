@@ -123,7 +123,13 @@ TaskExecutor::TaskExecutor(uint64_t max_size, uint64_t max_usec) : ThreadLoadCou
 
 //////////////////////////////////////////////////////////////////
 
-TaskExecutor::Ptr TaskExecutorGetterImp::getExecutor() {
+TaskExecutor::Ptr TaskExecutorGetterImp::getExecutor(bool srt_thread) {
+#ifdef HAIVISION_SRT
+    if (srt_thread) {
+        return _srt_poller;
+    }
+#endif
+
     auto thread_pos = _thread_pos;
     if (thread_pos >= _threads.size()) {
         thread_pos = 0;
@@ -190,6 +196,19 @@ size_t TaskExecutorGetterImp::getExecutorSize() const {
 size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread, bool enable_cpu_affinity) {
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
+
+#ifdef HAIVISION_SRT
+    auto srt_th_name = name + " hvs-srt";
+    _srt_poller = new EventPoller(srt_th_name, (ThreadPool::Priority) priority, true);
+    _srt_poller->runLoop(false, register_thread);
+    _srt_poller->async([size, cpus, srt_th_name, enable_cpu_affinity]() {
+        setThreadName(srt_th_name.data());
+        if (enable_cpu_affinity) {
+            setThreadAffinity(size % cpus);
+        }
+    });
+#endif
+
     for (size_t i = 0; i < size; ++i) {
         auto full_name = name + " " + to_string(i);
         EventPoller::Ptr poller(new EventPoller(full_name, (ThreadPool::Priority) priority));

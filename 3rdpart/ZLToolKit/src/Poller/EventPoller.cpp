@@ -19,8 +19,8 @@
 #if defined(HAS_EPOLL)
 #include <sys/epoll.h>
 
-#if !defined(EPOLLEXCLUSIVE)
-#define EPOLLEXCLUSIVE 0
+#ifdef HAIVISION_SRT
+#include "srt/srt.h"
 #endif
 
 #define EPOLL_SIZE 1024
@@ -30,6 +30,7 @@
 #define EPOLLEXCLUSIVE 0
 #endif
 
+//因为srt_epoll的事件枚举值和标准epoll是一致的，所以直接使用标准epoll枚举
 #define toEpoll(event)        (((event) & Event_Read)  ? EPOLLIN : 0) \
                             | (((event) & Event_Write) ? EPOLLOUT : 0) \
                             | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
@@ -45,17 +46,28 @@ using namespace std;
 
 namespace toolkit {
 
-EventPoller &EventPoller::Instance() {
+EventPoller &EventPoller::Instance(bool srt_thread) {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
 
-EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
+EventPoller::EventPoller(std::string name, ThreadPool::Priority priority, bool srt_thread) {
+#ifdef HAIVISION_SRT
+    _srt_thread = srt_thread;
+#endif
     _name = std::move(name);
     _priority = priority;
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
 
 #if defined(HAS_EPOLL)
+#ifdef HAIVISION_SRT
+    if (_srt_thread) {
+        _epoll_fd = srt_epoll_create();
+        // Enable srt empty poller, avoid warning.
+        srt_epoll_set(_epoll_fd, SRT_EPOLL_ENABLE_EMPTY)
+    }
+    else
+#endif
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
         throw runtime_error(StrPrinter << "Create epoll fd failed: " << get_uv_errmsg());
@@ -88,6 +100,12 @@ EventPoller::~EventPoller() {
     shutdown();
     wait();
 #if defined(HAS_EPOLL)
+#if defined(HAIVISION_SRT)
+    if (_srt_thread) {
+        srt_epoll_release(_epoll_fd);
+        _epoll_fd = -1;
+    } else
+#endif
     if (_epoll_fd != -1) {
         close(_epoll_fd);
         _epoll_fd = -1;
@@ -107,6 +125,17 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     }
 
     if (isCurrentThread()) {
+#if defined(HAIVISION_SRT)
+        if (_srt_thread) {
+            //已经订阅了这些事件，无需重复订阅
+            int epoll_events = toEpoll(event);
+            int ret = srt_epoll_add_usock(_epoll_fd, fd, &epoll_events);
+            if (ret == 0) {
+                _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
+            }
+            return ret;
+        }
+#endif
 #if defined(HAS_EPOLL)
         struct epoll_event ev = {0};
         ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
@@ -145,6 +174,13 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
     }
 
     if (isCurrentThread()) {
+#if defined(HAIVISION_SRT)
+        if (srt_thread) {
+            bool success = srt_epoll_remove_usock(_epoll_fd, fd) == 0 && _event_map.erase(fd) > 0;
+            cb(success);
+            return success ? 0 : -1;
+        }
+#endif
 #if defined(HAS_EPOLL)
         bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == 0 && _event_map.erase(fd) > 0;
         cb(success);
@@ -165,6 +201,12 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
 
 int EventPoller::modifyEvent(int fd, int event) {
     TimeTicker();
+#if defined(HAIVISION_SRT)
+    if (_srt_thread) {
+        int epoll_events = toEpoll(event);
+        return srt_epoll_update_usock(_epoll_fd, fd, &epoll_events);
+    }
+#endif
 #if defined(HAS_EPOLL)
     struct epoll_event ev = {0};
     ev.events = toEpoll(event);
@@ -289,6 +331,38 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
         _sem_run_started.post();
         _exit_flag = false;
         uint64_t minDelay;
+#if defined(HAIVISION_SRT)
+        if (_srt_thread) {
+            SRT_EPOLL_EVENT srt_events[EPOLL_SIZE];
+            while (!_exit_flag) {
+                minDelay = getMinDelay();//此调用会刷新定时器任务
+                startSleep();//用于统计当前线程负载情况
+                int ret = srt_epoll_uwait(_epoll_fd, srt_events, EPOLL_SIZE, minDelay ? minDelay : -1);
+                sleepWakeUp();//用于统计当前线程负载情况
+                if (ret <= 0) {
+                    //超时或被打断
+                    continue;
+                }
+                for (int i = 0; i < ret; ++i) {
+                    SRT_EPOLL_EVENT ev = srt_events[i];
+                    int fd = ev.fd;
+                    auto it = _event_map.find(fd);
+                    if (it == _event_map.end()) {
+                        srt_epoll_remove_usock(_epoll_fd, fd);
+                        continue;
+                    }
+                    auto cb = it->second;
+                    try {
+                        (*cb)(toPoller(ev.events));
+                    } catch (std::exception &ex) {
+                        ErrorL << "Exception occurred when do event task: " << ex.what();
+                    }
+                }
+            }
+            //srt epoll循环结束后直接退出函数
+            return;
+        }
+#endif
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         while (!_exit_flag) {
@@ -453,7 +527,13 @@ EventPoller::Ptr EventPollerPool::getFirstPoller() {
     return dynamic_pointer_cast<EventPoller>(_threads.front());
 }
 
-EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
+EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread, bool srt_thread) {
+#ifdef HAIVISION_SRT
+    if (srt_thread) {
+        return dynamic_pointer_cast<EventPoller>(getExecutor(true));
+    }
+#endif
+
     auto poller = EventPoller::getCurrentPoller();
     if (prefer_current_thread && _prefer_current_thread && poller) {
         return poller;

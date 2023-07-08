@@ -53,7 +53,7 @@ public:
      * 保留该接口是为了兼容老代码
      * @return 单例
      */
-    static EventPoller &Instance();
+    static EventPoller &Instance(bool srt_thread = false);
 
     /**
      * 添加事件监听
@@ -134,7 +134,7 @@ private:
     /**
      * 本对象只允许在EventPollerPool中构造
      */
-    EventPoller(std::string name, ThreadPool::Priority priority = ThreadPool::PRIORITY_HIGHEST);
+    EventPoller(std::string name, ThreadPool::Priority priority = ThreadPool::PRIORITY_HIGHEST, bool srt_thread = false);
 
     /**
      * 执行事件轮询
@@ -183,6 +183,12 @@ private:
     class ExitException : public std::exception {};
 
 private:
+#ifdef HAIVISION_SRT
+    //是否srt线程
+    bool _srt_thread;
+    //srt epoll events
+    int _srt_events = 0;
+#endif
     //标记loop线程是否退出
     bool _exit_flag;
     //线程名
@@ -264,7 +270,7 @@ public:
      * 返回当前线程的目的是为了提高线程安全性
      * @param prefer_current_thread 是否优先获取当前线程
      */
-    EventPoller::Ptr getPoller(bool prefer_current_thread = true);
+    EventPoller::Ptr getPoller(bool prefer_current_thread = true, bool srt_thread = false);
 
     /**
      * 设置 getPoller() 是否优先返回当前线程

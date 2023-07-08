@@ -199,7 +199,7 @@ public:
      * 获取任务执行器
      * @return 任务执行器
      */
-    virtual TaskExecutor::Ptr getExecutor() = 0;
+    virtual TaskExecutor::Ptr getExecutor(bool srt_thread = false) = 0;
 
     /**
      * 获取执行器个数
@@ -216,7 +216,7 @@ public:
      * 根据线程负载情况，获取最空闲的任务执行器
      * @return 任务执行器
      */
-    TaskExecutor::Ptr getExecutor() override;
+    TaskExecutor::Ptr getExecutor(bool srt_thread = false) override;
 
     /**
      * 获取所有线程的负载率
@@ -245,6 +245,7 @@ protected:
     size_t addPoller(const std::string &name, size_t size, int priority, bool register_thread, bool enable_cpu_affinity = true);
 
 protected:
+    TaskExecutor::Ptr _srt_poller;
     size_t _thread_pos = 0;
     std::vector<TaskExecutor::Ptr> _threads;
 };
