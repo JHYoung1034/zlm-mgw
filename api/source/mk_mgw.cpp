@@ -200,6 +200,7 @@ bool UcastSourceHelper::initAudio(track_info info) {
 }
 
 //-------------------------------------------------------------------------------
+static DeviceHandle::Ptr *obj = nullptr;
 
 DeviceHandle::DeviceHandle() {
     _poller = EventPollerPool::Instance().getPoller();
@@ -215,7 +216,7 @@ void DeviceHandle::setDeviceCallback() {
     _device_helper->setOnNetif([&](std::string &netif, uint16_t &mtu){
         if (_device_cb) {
             netinfo info;
-            _device_cb((mgw_handler_t*)this, MK_EVENT_GET_NETINFO, (void*)&info);
+            _device_cb((mgw_handler_t*)obj, MK_EVENT_GET_NETINFO, (void*)&info);
             netif = info.netif;
             netif = info.mtu;
         }
@@ -228,7 +229,7 @@ void DeviceHandle::setDeviceCallback() {
             attrs.max_players = cfg.max_players;
             attrs.max_bitrate = cfg.max_bitrate;
             attrs.max_4kbitrate = cfg.max_4kbitrate;
-            _device_cb((mgw_handler_t*)this, MK_EVENT_SET_STREAM_CFG, (void*)&attrs);
+            _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_STREAM_CFG, (void*)&attrs);
         }
         //收到会话回复才会调用这个回调，说明会话请求已经被回复了，可以进行后面的操作了
         _have_session_rsp = true;
@@ -245,7 +246,7 @@ void DeviceHandle::setDeviceCallback() {
                 int chn = getSourceChn(url);
                 //如果能找得到通道号，说明是设备流
                 if (-1 != chn) {
-                    _device_cb((mgw_handler_t*)this, MK_EVENT_SET_START_VIDEO, &chn);
+                    _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_START_VIDEO, &chn);
                 } else {
                     //TODO: 网络流，开始去拉流
                 }
@@ -266,7 +267,7 @@ void DeviceHandle::setDeviceCallback() {
             info.start_time = start_ts;
             info.priv = userdata;
 
-            _device_cb((mgw_handler_t*)this, MK_EVENT_SET_STREAM_STATUS, (void*)&info);
+            _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_STREAM_STATUS, (void*)&info);
         }
     });
     //流已经没有消费者了，此时可以通知编码器停止编码
@@ -274,7 +275,7 @@ void DeviceHandle::setDeviceCallback() {
         DebugL << "On no reader";
         if (_device_cb) {
             int chn = getSourceChn(id);
-            _device_cb((mgw_handler_t*)this, MK_EVENT_SET_STOP_VIDEO, (void*)&chn);
+            _device_cb((mgw_handler_t*)obj, MK_EVENT_SET_STOP_VIDEO, (void*)&chn);
         }
     });
     //推拉流鉴权处理，设备上的推拉流不做鉴权，直接通过
@@ -566,7 +567,7 @@ void DeviceHandle::inputFrame(uint32_t channel, const mk_frame_t &frame) {
             if (!chn->getTrack(TrackVideo, false) && !chn->getTrack(TrackVideo, true) && _device_cb) {
                 track_info meta = {};
                 meta.id = frame.id;
-                _device_cb((mgw_handler_t*)this, MK_EVENT_GET_STREAM_META, (void*)&meta);
+                _device_cb((mgw_handler_t*)obj, MK_EVENT_GET_STREAM_META, (void*)&meta);
                 if (!source->initVideo(meta)) {
                     return;
                 }
@@ -579,7 +580,7 @@ void DeviceHandle::inputFrame(uint32_t channel, const mk_frame_t &frame) {
         case MK_CODEC_ID_AAC: {
             if (!chn->getTrack(TrackAudio, false) && !chn->getTrack(TrackAudio, true) && _device_cb) {
                 track_info meta = {};
-                _device_cb((mgw_handler_t*)this, MK_EVENT_GET_STREAM_META, (void*)&meta);
+                _device_cb((mgw_handler_t*)obj, MK_EVENT_GET_STREAM_META, (void*)&meta);
                 if (!source->initAudio(meta)) {
                     return;
                 }
@@ -642,7 +643,7 @@ int DeviceHandle::addPusher(pusher_info *info) {
                 new_status.start_time = start_ts;
                 new_status.status = (mk_status)status;
                 new_status.priv = userdata;
-                strong_self->_device_cb((mgw_handler_t*)strong_self.get(), MK_EVENT_SET_STREAM_STATUS, (void*)&new_status);
+                strong_self->_device_cb((mgw_handler_t*)obj, MK_EVENT_SET_STREAM_STATUS, (void*)&new_status);
             }
         };
 
@@ -867,22 +868,21 @@ void DeviceHandle::getPlayService(play_service_attr *attr) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
 mgw_handler_t *mgw_create_device(mgw_context *ctx) {
     assert(ctx);
-    DeviceHandle *handle = new DeviceHandle();
-    bool result = handle->startup(ctx);
+    obj = new DeviceHandle::Ptr(make_shared<DeviceHandle>());
+    bool result = obj->get()->startup(ctx);
     if (!result) {
         ErrorL << "Start mgw-zlm failed!";
-        mgw_release_device(handle);
+        mgw_release_device(obj);
         return NULL;
     }
-    return (mgw_handler_t*)handle;
+    return (mgw_handler_t*)obj;
 }
 
 void mgw_release_device(mgw_handler_t *h) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
     delete handle;
     handle = nullptr;
 }
@@ -890,122 +890,122 @@ void mgw_release_device(mgw_handler_t *h) {
 ///////////////////////////////////////////////////////////////////////////
 int mgw_connect2server(mgw_handler_t *h, const conn_info *info) {
     assert((h) && info);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->connectServer(info);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->connectServer(info);
     return 0;
 }
 
 void mgw_disconnect4server(mgw_handler_t *h) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->disconnect();
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->disconnect();
 }
 
 bool mgw_server_available(mgw_handler_t *h) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->messageAvailable();
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->messageAvailable();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 int mgw_input_packet(mgw_handler_t *h, uint32_t channel, mk_frame_t frame) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->inputFrame(channel, frame);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->inputFrame(channel, frame);
     return 0;
 }
 
 void mgw_release_source(mgw_handler_t *h, bool local, uint32_t channel) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->releaseRawSource(local, channel);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->releaseRawSource(local, channel);
 }
 
 void mgw_update_meta(mgw_handler_t *h, uint32_t channel, track_info info) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->updateMeta(true, channel, info);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->updateMeta(true, channel, info);
 }
 
 bool mgw_have_raw_video(mgw_handler_t *h, uint32_t channel) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->hasRawVideo(channel);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->hasRawVideo(channel);
 }
 
 bool mgw_have_raw_audio(mgw_handler_t *h, uint32_t channel) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->hasRawAudio(channel);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->hasRawAudio(channel);
 }
 
 //-----------------------------------------------------------------------------------------------
 //record
 void mgw_start_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->setupRecord(local, it, channel, true);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->setupRecord(local, it, channel, true);
 }
 
 void mgw_stop_recorder(mgw_handler_t *h, bool local, input_type_t it, uint32_t channel) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->setupRecord(local, it, channel, false);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->setupRecord(local, it, channel, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 int mgw_add_pusher(mgw_handler_t *h, pusher_info *info) {
     assert((h) && info);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->addPusher(info);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->addPusher(info);
 }
 
 void mgw_release_pusher(mgw_handler_t *h, bool remote, uint32_t chn) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->releasePusher(remote, chn);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->releasePusher(remote, chn);
 }
 
 bool mgw_has_pusher(mgw_handler_t *h, bool remote, uint32_t chn) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->hasPusher(remote, chn);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->hasPusher(remote, chn);
 }
 
 bool mgw_has_tunnel_pusher(mgw_handler_t *h) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->hasTunnelPusher();
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->hasTunnelPusher();
 }
 
 void mgw_release_tunnel_pusher(mgw_handler_t *h) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    return handle->releaseTunnelPusher();
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    return handle->get()->releaseTunnelPusher();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 void mgw_set_play_service(mgw_handler_t *h, play_service_attr *attr) {
     assert((h) && attr);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->setPlayService(attr);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->setPlayService(attr);
 }
 
 void mgw_get_play_service(mgw_handler_t *h, play_service_attr *attr) {
     assert((h) && attr);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->getPlayService(attr);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->getPlayService(attr);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 void mgw_add_player(mgw_handler_t *h, player_attr attr) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->addPlayer(attr);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->addPlayer(attr);
 }
 
 void mgw_release_player(mgw_handler_t *h, bool remote, input_type_t it, int channel) {
     assert(h);
-    DeviceHandle *handle = static_cast<DeviceHandle*>(h);
-    handle->releasePlayer(remote, it, channel);
+    DeviceHandle::Ptr *handle = static_cast<DeviceHandle::Ptr*>(h);
+    handle->get()->releasePlayer(remote, it, channel);
 }
