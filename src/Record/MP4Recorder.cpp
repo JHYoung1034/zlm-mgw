@@ -16,6 +16,7 @@
 #include "MP4Recorder.h"
 #include "Thread/WorkThreadPool.h"
 #include "MP4Muxer.h"
+#include "Util/logger.h"
 
 using namespace std;
 using namespace toolkit;
@@ -136,6 +137,17 @@ bool MP4Recorder::addTrack(const Track::Ptr &track) {
     if (track->getTrackType() == TrackVideo) {
         _have_video = true;
     }
+
+    weak_ptr<MP4Recorder> weak_self = shared_from_this();
+    track->setOnChangedCB([weak_self](bool is_video) {
+        DebugL << "Track " << (is_video ? "Video " : "Audio ") << "have changed!";
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+
+        strong_self->createFile();
+    });
     return true;
 }
 

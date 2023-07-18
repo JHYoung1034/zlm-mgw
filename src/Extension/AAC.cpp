@@ -317,6 +317,20 @@ bool AACTrack::inputFrame_l(const Frame::Ptr &frame) {
         } else {
             WarnL << "无法获取adts头!";
         }
+    } else {
+        if (frame->prefixSize()) {
+            string cfg = makeAacConfig((uint8_t *) (frame->data()), frame->prefixSize());
+            int channels = 0, samplerate = 0;
+            parseAacConfig(cfg, samplerate, channels);
+            if (samplerate != _sampleRate || channels != channels) {
+                _cfg = cfg;
+                _sampleRate = samplerate;
+                _channel = channels;
+                if (_on_changed) {
+                    _on_changed(false);
+                }
+            }
+        }
     }
 
     if (frame->size() > frame->prefixSize()) {

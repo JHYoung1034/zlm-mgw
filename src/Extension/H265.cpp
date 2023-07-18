@@ -122,15 +122,32 @@ bool H265Track::inputFrame_l(const Frame::Ptr &frame) {
     //非idr帧
     switch (H265_TYPE( frame->data()[frame->prefixSize()])) {
         case H265Frame::NAL_VPS: {
-            _vps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            string vps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            if (!_vps.empty() && _vps.compare(vps)) {
+                _vps_changed = true;
+                _vps = move(vps);
+            }
             break;
         }
         case H265Frame::NAL_SPS: {
-            _sps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            string sps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            if (!_sps.empty() && _sps.compare(sps)) {
+                _sps_changed = true;
+                _sps = move(sps);
+            }
             break;
         }
         case H265Frame::NAL_PPS: {
-            _pps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            string pps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            if (!_pps.empty() && _pps.compare(pps)) {
+                _pps_changed = true;
+                _pps = move(pps);
+            }
+
+            if ((_vps_changed || _sps_changed || _pps_changed) && _on_changed) {
+                _vps_changed = _sps_changed = _pps_changed = false;
+                _on_changed(true);
+            }
             break;
         }
         default: {

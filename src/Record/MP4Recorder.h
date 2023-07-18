@@ -22,7 +22,7 @@ namespace mediakit {
 #ifdef ENABLE_MP4
 class MP4Muxer;
 
-class MP4Recorder final : public MediaSinkInterface {
+class MP4Recorder final : public MediaSinkInterface, public std::enable_shared_from_this<MP4Recorder> {
 public:
     using Ptr = std::shared_ptr<MP4Recorder>;
 

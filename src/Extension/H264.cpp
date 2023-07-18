@@ -183,15 +183,27 @@ bool H264Track::inputFrame_l(const Frame::Ptr &frame) {
     bool ret = true;
     switch (type) {
         case H264Frame::NAL_SPS: {
-            _sps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            string sps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
             _latest_is_config_frame = true;
             ret = VideoTrack::inputFrame(frame);
+            if (!_sps.empty() && _sps.compare(sps)) {
+                _sps_changed = true;
+                _sps = move(sps);
+            }
             break;
         }
         case H264Frame::NAL_PPS: {
-            _pps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
+            string pps = string(frame->data() + frame->prefixSize(), frame->size() - frame->prefixSize());
             _latest_is_config_frame = true;
             ret = VideoTrack::inputFrame(frame);
+            if (!_pps.empty() && _pps.compare(pps)) {
+                _pps_changed = true;
+                _pps = move(pps);
+            }
+            if ((_sps_changed || _pps_changed) && _on_changed) {
+                _sps_changed = _pps_changed = false;
+                _on_changed(true);
+            }
             break;
         }
         default:

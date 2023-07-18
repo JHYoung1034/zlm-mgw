@@ -24,6 +24,7 @@ namespace mediakit{
 class Track : public FrameDispatcher , public CodecInfo{
 public:
     using Ptr = std::shared_ptr<Track>;
+    using onChanged = std::function<void(bool is_video)>;
     Track(){}
 
     virtual ~Track(){}
@@ -65,6 +66,20 @@ public:
     Track(const Track &that){
         _bit_rate = that._bit_rate;
     }
+
+    /**
+     * 音视频信息改变通知
+     * 如果是hevc视频，vps变化时发出通知
+     * 如果是avc视频，sps变化时发出通知
+     * 如果是aac音频，采样率变化时发出通知
+    */
+   void setOnChangedCB(onChanged on_changed) { _on_changed = on_changed; }
+
+protected:
+    bool _vps_changed = false;
+    bool _sps_changed = false;
+    bool _pps_changed = false;
+    onChanged _on_changed = nullptr;
 
 private:
     int _bit_rate = 0;
